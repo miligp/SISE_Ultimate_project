@@ -22,7 +22,6 @@ SCENARIOS = [
     }
 ]
 
-
 async def test_standard(scenario: dict) -> bool:
     print(f"\n[{scenario['label']}] {scenario['query']}")
     print("─" * 60)

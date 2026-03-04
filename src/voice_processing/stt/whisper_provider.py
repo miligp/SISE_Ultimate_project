@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 class WhisperSTT:
     def __init__(self, model_name: str = "base") -> None:
         self.model_name: str = model_name
-        self._model: Optional[whisper.Whisper] = None
+        self._model: Optional[Whisper] = None
 
     def _load_model(self) -> whisper.Whisper:
         if self._model is None:

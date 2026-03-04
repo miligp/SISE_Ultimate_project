@@ -26,7 +26,6 @@ SCENARIOS = [
     }
 ]
 
-
 async def test_standard(scenario: dict) -> bool:
     """Test run_query (réponse complète)."""
     print(f"\n[{scenario['label']}] {scenario['query']}")

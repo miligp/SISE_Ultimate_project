@@ -1,12 +1,9 @@
 """
-Tests de la boucle LLM ↔ MCP avec requêtes codées en dur.
+Tests de l'agent avec l'outil email_utils intégré.
 
 Prérequis :
-    1. Démarrer le serveur MCP dans mcp_workspace/ :
-           cd mcp_workspace && uv run fastmcp run fastmcp_server.py --transport streamable-http
-    2. Configurer .env à la racine du projet :
-           ANTHROPIC_API_KEY=sk-ant-...
-           MCP_SERVER_URL=http://localhost:8000/mcp   # optionnel, valeur par défaut
+    1. Configurer .env à la racine du projet avec les variables requises :
+       EMAIL_USER, EMAIL_PASSWORD, EMAIL_IMAP_SERVER, ANTHROPIC_API_KEY (ou autre)
 
 Lancement :
     uv run python -m src.agent_logic.test_agent
@@ -18,17 +15,15 @@ import time
 
 from src.agent_logic.pydantic_ai_agent import run_query, stream_query
 
-# ─── Scénarios de test ────────────────────────────────────────────────────────
 SCENARIOS = [
     {
         "label": "Lecture emails",
-        "query": "Lis le dernier mail et donne-moi un résumé.",
+        "query": "Quels sont mes 2 derniers emails ?",
     }
 ]
 
 
 async def test_standard(scenario: dict) -> bool:
-    """Test run_query (réponse complète)."""
     print(f"\n[{scenario['label']}] {scenario['query']}")
     print("─" * 60)
     t0 = time.perf_counter()
@@ -44,7 +39,6 @@ async def test_standard(scenario: dict) -> bool:
 
 
 async def test_stream(query: str) -> bool:
-    """Test stream_query (tokens en temps réel)."""
     print(f"\n[Streaming] {query}")
     print("─" * 60)
     try:
@@ -59,21 +53,18 @@ async def test_stream(query: str) -> bool:
 
 async def main():
     print("=" * 60)
-    print("  Test boucle LLM ↔ MCP")
+    print("  Test Agent ↔ email_utils")
     print("=" * 60)
 
     results = []
 
-    # Tests standards
     for scenario in SCENARIOS:
         ok = await test_standard(scenario)
         results.append(ok)
 
-    # Test streaming sur la première requête
-    ok = await test_stream("Combien d'emails non lus ai-je ?")
+    ok = await test_stream("Résume brièvement mon dernier email reçu.")
     results.append(ok)
 
-    # Bilan
     passed = sum(results)
     total = len(results)
     print(f"\n{'=' * 60}")

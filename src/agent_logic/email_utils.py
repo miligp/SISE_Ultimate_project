@@ -4,6 +4,31 @@ from email.header import decode_header
 from email.message import Message
 from typing import List, Dict, Optional
 import os
+import smtplib
+from email.message import EmailMessage
+
+def send_email(to_address: str, subject: str, body: str) -> str:
+    user: str | None = os.getenv("EMAIL_USER")
+    password: str | None = os.getenv("EMAIL_PASSWORD")
+    server: str = os.getenv("EMAIL_SMTP_SERVER", "smtp.gmail.com")
+    port: int = int(os.getenv("EMAIL_SMTP_PORT", "465"))
+
+    if not user or not password:
+        return "Error: Missing credentials."
+
+    msg = EmailMessage()
+    msg.set_content(body)
+    msg["Subject"] = subject
+    msg["From"] = user
+    msg["To"] = to_address
+
+    try:
+        with smtplib.SMTP_SSL(server, port) as smtp:
+            smtp.login(user, password)
+            smtp.send_message(msg)
+        return f"Email successfully sent to {to_address}."
+    except Exception as e:
+        return f"Failed to send email: {e}"
 
 def _get_email_body(msg: Message, max_length: int = 2000) -> str:
     body: str = ""

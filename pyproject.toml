@@ -1,10 +1,14 @@
 [project]
 name = "sise-claw"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI assistant liant LLM et serveur MCP Google Workspace"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "pydantic-ai>=0.0.14",
+    "httpx>=0.28.1",
+    "python-dotenv>=1.1.0",
+    "mistralai>=1.0.0",
     "numpy>=2.4.2",
     "sounddevice>=0.5.5",
     "soundfile>=0.13.1",

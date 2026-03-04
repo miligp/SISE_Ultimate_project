@@ -9,17 +9,21 @@ from typing import AsyncGenerator
 from dotenv import load_dotenv
 from pydantic_ai import Agent
 
-from src.agent_logic.email_utils import get_latest_emails
+from src.agent_logic.email_utils import get_latest_emails, send_email
+
 
 load_dotenv()
 
 LLM_MODEL = os.getenv("LLM_MODEL", "mistral:mistral-large-latest")
 
-SYSTEM_PROMPT = (
+SYSTEM_PROMPT: str = (
     "Tu es un assistant personnel intelligent. "
-    "Tu as accès à une fonction pour lire les derniers emails de l'utilisateur. "
+    "Tu as accès à des fonctions pour lire et envoyer des emails. "
     "Réponds toujours en français sauf si l'utilisateur parle une autre langue. "
-    "Sois concis et précis dans tes réponses."
+    "Sois concis et précis dans tes réponses. "
+    "RÈGLE CRITIQUE : Ne déclenche JAMAIS l'outil `send_email` de ta propre initiative. "
+    "Tu dois d'abord présenter le brouillon (destinataire, objet, corps) à l'utilisateur, "
+    "puis attendre explicitement sa confirmation dans le tour de parole suivant avant d'exécuter l'outil."
 )
 
 agent = Agent(
@@ -31,6 +35,11 @@ agent = Agent(
 def fetch_emails(count: int = 5) -> list[dict[str, str]]:
     """Récupère les derniers emails de la boîte de réception."""
     return get_latest_emails(count)
+
+@agent.tool_plain
+def dispatch_email(to_address: str, subject: str, body: str) -> str:
+    """Envoie un email après validation explicite de l'utilisateur."""
+    return send_email(to_address, subject, body)
 
 
 async def run_query(query: str) -> str:

@@ -31,7 +31,8 @@ from src.agent_logic.router_utils import (
     fetch_route
 )
 
-from typing import Literal # Ajoute cet import si ce n'est pas déjà fait
+from src.agent_logic.doc_utils import OUTPUT_DIR
+
 
 load_dotenv()
 
@@ -78,9 +79,19 @@ def fetch_emails_tool(
     return search_emails(sender, subject, since_date, limit, is_unread)
 
 @agent.tool_plain
-def dispatch_email(to_address: str, subject: str, body: str) -> str:
-    """Envoie un email après validation explicite de l'utilisateur."""
-    return send_email(to_address, subject, body)
+def send_email_tool(to_address: str, subject: str, body: str, attachment_filename: Optional[str] = None) -> str:
+    """
+    Envoie un email avec la possibilité d'ajouter une pièce jointe locale.
+    - to_address: L'adresse email du destinataire.
+    - subject: Le sujet de l'email.
+    - body: Le contenu textuel du message.
+    - attachment_filename: Le nom exact du fichier à joindre (ex: 'data.xlsx' ou 'report.docx'). Optionnel.
+    """
+    attachment_path: Optional[str] = None
+    if attachment_filename:
+        attachment_path = str(OUTPUT_DIR / attachment_filename)
+        
+    return send_email(to_address, subject, body, attachment_path)
 
 @agent.tool_plain
 def delete_email_tool(mail_id: str) -> str:

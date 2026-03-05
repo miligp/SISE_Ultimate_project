@@ -1,66 +1,65 @@
-# src/voice_processing/tts/text_processor.py
 import os
+import re
 import logging
 from typing import Optional
 
-# Import du SDK officiel
 from mistralai import Mistral
 
 logger = logging.getLogger(__name__)
 
 class LLMTextCleaner:
-    """
-    Service de normalisation de texte utilisant l'API Mistral.
-    Transforme le texte brut/markdown de l'agent en un script naturel prêt à être lu (TTS).
-    """
     def __init__(self) -> None:
         self.api_key: Optional[str] = os.getenv("MISTRAL_API_KEY")
-        
-        # Instanciation du client Mistral si la clé est trouvée
         self.client: Optional[Mistral] = Mistral(api_key=self.api_key) if self.api_key else None
-        
-        # mistral-small-latest est parfait pour cette tâche rapide de réécriture
         self.model: str = "mistral-small-latest"
 
+    def _fallback_clean(self, text: str) -> str:
+        """Removes Markdown and complex URLs for direct TTS ingestion."""
+        text = re.sub(r'[*_#`]', '', text)
+        text = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', text)
+        text = re.sub(r'http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+', 'un lien web', text)
+        return text.strip()
+
     async def process_for_speech(self, text: str) -> str:
-        """
-        Interroge l'API Mistral pour convertir le texte de l'agent en un script oral structuré.
-        """
         if not text:
             return ""
             
+        # Bypass for short UI confirmations (latency optimization)
+        if len(text) < 60:
+            return self._fallback_clean(text)
+            
         if not self.client:
-            logger.warning("⚠️ Clé MISTRAL_API_KEY absente. Fallback d'urgence sans LLM.")
-            return text.replace("*", "").replace("#", "")
+            logger.warning("MISTRAL_API_KEY missing. Fallback to regex cleaner.")
+            return self._fallback_clean(text)
 
-        # 🧠 Prompt Engineering Avancé : Traduction Visuel -> Oral
         system_prompt = (
-            "Tu es un expert en communication orale et Text-To-Speech. "
-            "Ta mission est de résumer et d'adapter le texte de l'utilisateur pour qu'il soit lu à voix haute. "
-            "1. CONCISION : Sois direct et va à l'essentiel. Fais des phrases courtes. "
-            "2. STRUCTURE ORALE : Si le texte d'origine contient des listes ou des idées complexes, "
-            "organise-les logiquement avec des mots de liaison clairs (ex: 'Premièrement', 'Ensuite', 'Pour résumer') "
-            "au lieu d'utiliser des énumérations hachées. "
-            "3. NETTOYAGE : Ne génère AUCUN symbole Markdown ou ponctuation anormale. "
+            "Tu es une interface Text-To-Speech (TTS). Ta tâche est de réécrire la réponse "
+            "de l'agent pour qu'elle soit fluide, naturelle et RAPIDE à écouter à la voix.\n"
+            "Règles strictes :\n"
+            "1. CONCISION : Élimine la verbosité. Va droit au but, synthétise les points quand il y en a plusieurs\n"
+            "2. CONTEXTE OUTILS :\n"
+            "   - Emails : Résume simplement les expéditeurs et le sujet en 2 mots!\n"
+            "   - Documents : Résume le contenu de manière digeste. Ne lis pas les chemins de fichiers complexes.\n"
+            "   - URLs : Remplace-les toutes par l'expression 'un lien'.\n"
+            "3. FORMATAGE ORAL : Remplace les listes à puces par des liaisons naturelles synthétisées ('Premièrement', 'ensuite').\n"
+            "4. NETTOYAGE : Aucun formatage Markdown (*, #, _, etc.). Ne justifie pas tes modifications."
         )
 
         try:
-            logger.info("🔄 Normalisation LLM (Structure orale) via Mistral Small...")
-            
             response = await self.client.chat.complete_async(
                 model=self.model,
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": text}
                 ],
-                # On enlève max_tokens pour éviter les phrases coupées.
-                # On garde une température basse (0.3) pour que le LLM reste très factuel et structuré.
-                temperature=0.3
+                temperature=0.2 
             )
+            # Récupération de la réponse de Mistral
+            llm_text: str = response.choices[0].message.content.strip()
             
-            clean_text: str = response.choices[0].message.content.strip()
-            return clean_text
+            # 🛑 AJOUT : On force le nettoyage Regex sur la sortie du LLM quoiqu'il arrive
+            return self._fallback_clean(llm_text)
             
         except Exception as e:
-            logger.error("❌ Échec de la normalisation Mistral : %s", e)
-            return text.replace("*", "").replace("#", "")
+            logger.error("Mistral normalization failed: %s", e)
+            return self._fallback_clean(text)

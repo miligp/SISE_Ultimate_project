@@ -66,7 +66,8 @@ def search_emails(
     sender: Optional[str] = None, 
     subject: Optional[str] = None, 
     since_date: Optional[str] = None, 
-    limit: int = 5
+    limit: int = 5,
+    is_unread: bool = False
 ) -> List[Dict[str, str]]:
     user: Optional[str] = os.getenv("EMAIL_USER")
     password: Optional[str] = os.getenv("EMAIL_PASSWORD")
@@ -80,24 +81,29 @@ def search_emails(
         mail = imaplib.IMAP4_SSL(server)
         mail.login(user, password)
         mail.select("inbox")
-
+        
         search_criteria: List[str] = []
+        if is_unread:
+            search_criteria.append("UNSEEN")
+            
         if sender:
-            search_criteria.append(f'FROM "{sender}"')
+            search_criteria.append(f'(FROM "{sender}")')
         if subject:
-            search_criteria.append(f'SUBJECT "{subject}"')
+            search_criteria.append(f'(SUBJECT "{subject}")')
         if since_date:
-            search_criteria.append(f'SINCE "{since_date}"')
-
-        query: str = f"({' '.join(search_criteria)})" if search_criteria else "ALL"
+            search_criteria.append(f'(SINCE "{since_date}")')
+            
+        query: str = " ".join(search_criteria) if search_criteria else "ALL"
         
         status, data = mail.search(None, query)
         if status != "OK" or not data or not data[0]:
             return []
             
         mail_ids: List[str] = data[0].split()
+        emails: List[Dict[str, str]] = []
         
-        for m_id in mail_ids[-limit:]:
+        for m_id_bytes in mail_ids[-limit:]:
+            m_id: str = m_id_bytes.decode('utf-8')
             _, msg_data = mail.fetch(m_id, "(RFC822)")
             for response_part in msg_data:
                 if isinstance(response_part, tuple):
@@ -114,6 +120,7 @@ def search_emails(
                             decoded_subject = str(raw_subject)
                     
                     emails.append({
+                        "id": m_id, # AJOUT DE L'ID IMAP
                         "from": str(msg.get("From", "")),
                         "subject": decoded_subject,
                         "date": str(msg.get("Date", "")),
@@ -124,3 +131,29 @@ def search_emails(
         return [{"error": str(e)}]
         
     return emails[::-1]
+
+def delete_email(mail_id: str) -> str:
+    """
+    Supprime définitivement un email via son identifiant IMAP.
+    """
+    user: str | None = os.getenv("EMAIL_USER")
+    password: str | None = os.getenv("EMAIL_PASSWORD")
+    server: str = os.getenv("EMAIL_IMAP_SERVER", "imap.gmail.com")
+
+    if not user or not password:
+        return "Error: Missing credentials."
+
+    try:
+        mail = imaplib.IMAP4_SSL(server)
+        mail.login(user, password)
+        mail.select("inbox")
+        
+        # Le protocole IMAP marque d'abord le message comme supprimé (\Deleted)
+        mail.store(mail_id, '+FLAGS', '\\Deleted')
+        # Puis expunge nettoie définitivement la boîte des messages marqués
+        mail.expunge()
+        mail.logout()
+        
+        return f"Succès : l'email avec l'ID {mail_id} a été supprimé définitivement."
+    except Exception as e:
+        return f"Erreur lors de la suppression de l'email : {e}"

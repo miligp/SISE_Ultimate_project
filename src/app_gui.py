@@ -228,8 +228,11 @@ class SiseClawApp(ctk.CTk):
         if self._running:
             # Interruption de la lecture TTS en cours
             if self._playing:
-                sd.stop()
+                # 🛑 CORRECTION : On demande l'arrêt dans un thread à part 
+                # pour ne jamais bloquer la boucle de l'interface Tkinter.
+                threading.Thread(target=sd.stop, daemon=True).start()
             return
+        
         self._running = True
         self.mic_btn.set_listening()
         threading.Thread(target=self._pipeline_thread, daemon=True).start()

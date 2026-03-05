@@ -1,5 +1,7 @@
 <div align="center">
 
+<img width="180" alt="SISE-CLAW logo" src="Installation_notice/img/logo.png" />
+
 # 🎙️ SISE-CLAW
 
 ### *Listen. Think. Speak.*
@@ -13,9 +15,12 @@
 ![License](https://img.shields.io/badge/License-Académique-gray?style=flat-square)
 
 **Assistant personnel intelligent contrôlé à la voix**
-
-*Sprint de 2 jours Master 2 SISE — Data Science*
-*Université Lumière Lyon 2 · 2025–2026*
+<div align="center">
+Challenge sur 2 jours · Master 2 SISE — Data Science
+</div>
+<div align="center">
+Université Lumière Lyon 2 · 2025–2026
+</div>
 
 [Contexte](#contexte-et-problématique) • [Approche](#solution-proposée) • [Architecture](#-architecture) • [Technologies](#-technologies) • [Installation](#-installation) • [Mode d'emploi](#-mode-demploi)
 
@@ -124,7 +129,7 @@ src/
 
 ### Interface et audio
 
-<img width="788" height="725" alt="image" src="https://github.com/user-attachments/assets/b0cb0ceb-7c6a-49ca-930c-50b6d8374711" />
+<img width="788" alt="image" src="Installation_notice/img/Image4.jpg" />
 
 
 | Bibliothèque | Version | Rôle |
@@ -268,6 +273,8 @@ Master 2 SISE — Université Lumière Lyon 2 · 2025–2026
 <div align="center">
 Romain BUONO - Constantin REY-COQUAIS - Milena GORDIEN PIQUET
 </div>
+
+
 
 
 

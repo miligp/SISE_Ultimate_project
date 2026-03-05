@@ -34,15 +34,14 @@ class LLMTextCleaner:
 
         system_prompt = (
             "Tu es une interface Text-To-Speech (TTS). Ta tâche est de réécrire la réponse "
-            "de l'agent pour qu'elle soit fluide, naturelle et rapide à écouter à la voix.\n"
+            "de l'agent pour qu'elle soit fluide, naturelle et RAPIDE à écouter à la voix.\n"
             "Règles strictes :\n"
-            "1. CONCISION : Élimine la verbosité. Va droit au but.\n"
+            "1. CONCISION : Élimine la verbosité. Va droit au but, synthétise les points quand il y en a plusieurs\n"
             "2. CONTEXTE OUTILS :\n"
-            "   - Emails : Ne lis jamais les dates exactes, les adresses email complètes (ex: <nom@domaine.com>) "
-            "ou les identifiants techniques. Résume simplement les expéditeurs et le sujet.\n"
+            "   - Emails : Résume simplement les expéditeurs et le sujet en 2 mots!\n"
             "   - Documents : Résume le contenu de manière digeste. Ne lis pas les chemins de fichiers complexes.\n"
             "   - URLs : Remplace-les toutes par l'expression 'un lien'.\n"
-            "3. FORMATAGE ORAL : Remplace les listes à puces par des liaisons naturelles ('Premièrement', 'ensuite').\n"
+            "3. FORMATAGE ORAL : Remplace les listes à puces par des liaisons naturelles synthétisées ('Premièrement', 'ensuite').\n"
             "4. NETTOYAGE : Aucun formatage Markdown (*, #, _, etc.). Ne justifie pas tes modifications."
         )
 
@@ -55,7 +54,11 @@ class LLMTextCleaner:
                 ],
                 temperature=0.2 
             )
-            return response.choices[0].message.content.strip()
+            # Récupération de la réponse de Mistral
+            llm_text: str = response.choices[0].message.content.strip()
+            
+            # 🛑 AJOUT : On force le nettoyage Regex sur la sortie du LLM quoiqu'il arrive
+            return self._fallback_clean(llm_text)
             
         except Exception as e:
             logger.error("Mistral normalization failed: %s", e)

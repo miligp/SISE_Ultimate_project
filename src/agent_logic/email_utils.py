@@ -7,8 +7,10 @@ import os
 import smtplib
 from email.message import EmailMessage
 import re
+import mimetypes
+from pathlib import Path
 
-def send_email(to_address: str, subject: str, body: str) -> str:
+def send_email(to_address: str, subject: str, body: str, attachment_path: Optional[str] = None) -> str:
     user: str | None = os.getenv("EMAIL_USER")
     password: str | None = os.getenv("EMAIL_PASSWORD")
     server: str = os.getenv("EMAIL_SMTP_SERVER", "smtp.gmail.com")
@@ -22,6 +24,19 @@ def send_email(to_address: str, subject: str, body: str) -> str:
     msg["Subject"] = subject
     msg["From"] = user
     msg["To"] = to_address
+
+    if attachment_path:
+        path = Path(attachment_path)
+        if not path.exists() or not path.is_file():
+            return f"Error: Attachment file not found at {attachment_path}."
+        
+        ctype, encoding = mimetypes.guess_type(str(path))
+        if ctype is None or encoding is not None:
+            ctype = "application/octet-stream"
+        maintype, subtype = ctype.split("/", 1)
+        
+        with open(path, "rb") as f:
+            msg.add_attachment(f.read(), maintype=maintype, subtype=subtype, filename=path.name)
 
     try:
         with smtplib.SMTP_SSL(server, port) as smtp:

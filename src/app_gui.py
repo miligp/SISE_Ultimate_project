@@ -332,6 +332,7 @@ class SiseClawApp(ctk.CTk):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(levelname)s [%(name)s] %(message)s")
+    logging.getLogger("httpx").setLevel(logging.WARNING)
     ctk.set_appearance_mode("dark")
     ctk.set_default_color_theme("dark-blue")
     app = SiseClawApp()

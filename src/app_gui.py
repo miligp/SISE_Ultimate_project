@@ -58,6 +58,7 @@ class SiseClawApp(ctk.CTk):
 
         # ── State ─────────────────────────────────────────
         self._running = False
+        self._playing = False   # True uniquement pendant la lecture TTS
         self._message_history: List[ModelMessage] = []
         self._recorder = MicrophoneRecorder(sample_rate=16000, channels=1)
         self._manager = TranscriptionManager(providers=[
@@ -225,6 +226,9 @@ class SiseClawApp(ctk.CTk):
 
     def _on_mic_click(self):
         if self._running:
+            # Interruption de la lecture TTS en cours
+            if self._playing:
+                sd.stop()
             return
         self._running = True
         self.mic_btn.set_listening()
@@ -303,7 +307,9 @@ class SiseClawApp(ctk.CTk):
                 self._loop,
             )
             tts_path = tts_future.result()
-            self._speaker.play_file(tts_path)
+            self._playing = True
+            self._speaker.play_file(tts_path)   # bloque jusqu'à fin ou sd.stop()
+            self._playing = False
             tts_path.unlink(missing_ok=True)
 
             self.after(0, lambda: self.console.write_detail(f"→ terminé en {e:.1f}s"))

@@ -7,8 +7,6 @@ Lancement : python src/app_gui.py
 
 import asyncio
 import logging
-import queue
-import re
 import threading
 import time
 import sys
@@ -41,10 +39,8 @@ from src.voice_processing.stt.deepgram_provider import DeepgramSTTProvider
 from src.voice_processing.stt.groq_provider import GroqSTTProvider
 from src.voice_processing.stt.whisper_provider import WhisperSTT
 from src.voice_processing.stt.transcription_manager import TranscriptionManager
-
 from src.voice_processing.tts.edge_tts_provider import EdgeTTSProvider
 from src.voice_processing.tts.synthesis_manager import SynthesisManager
-
 from src.voice_processing.audio_playback import AudioSpeaker
 from src.agent_logic.pydantic_ai_agent import agent
 
@@ -62,8 +58,7 @@ class SiseClawApp(ctk.CTk):
 
         # ── State ─────────────────────────────────────────
         self._running = False
-        self._playing = False
-        self._stop_playback = threading.Event()
+        self._playing = False   # True uniquement pendant la lecture TTS
         self._message_history: List[ModelMessage] = []
         self._recorder = MicrophoneRecorder(sample_rate=16000, channels=1)
         self._manager = TranscriptionManager(providers=[
@@ -231,13 +226,10 @@ class SiseClawApp(ctk.CTk):
 
     def _on_mic_click(self):
         if self._running:
-            # Interrompt la lecture ET le stream LLM → pipeline_thread se termine rapidement
+            # Interruption de la lecture TTS en cours
             if self._playing:
-                self._stop_playback.set()
                 sd.stop()
-            # Si pas en lecture (ex: STT/LLM en cours), on ignore
             return
-        self._stop_playback.clear()
         self._running = True
         self.mic_btn.set_listening()
         threading.Thread(target=self._pipeline_thread, daemon=True).start()
@@ -248,9 +240,6 @@ class SiseClawApp(ctk.CTk):
 
     def _pipeline_thread(self):
         audio_path: Optional[Path] = None
-        # Déclarés avant try pour être accessibles dans finally
-        audio_queue: queue.Queue[Optional[Path]] = queue.Queue()
-        consumer: Optional[threading.Thread] = None
         t_start = time.time()
 
         try:
@@ -282,75 +271,46 @@ class SiseClawApp(ctk.CTk):
             self.after(0, lambda: self.console.write_step("▶", "USER", f'"{q}"', "text"))
             self.after(0, lambda: self.console.write_detail(f"→ {len(q)} caractères"))
 
-            # ── 3. LLM stream + TTS par phrase ───────────
-            self.after(0, lambda: self._set_status("STREAMING", BLUE))
-            self.after(0, lambda: self.console.write_step("🧠", "LLM", "Lecture en cours...", "blue"))
+            # ── 3. Agent LLM ──────────────────────────────
+            self.after(0, lambda: self._set_status("RÉFLEXION", BLUE))
+            self.after(0, lambda: self.console.write_step("🧠", "LLM", "Analyse et réflexion...", "blue"))
 
-            full_response: List[str] = [""]
-            _SENT = re.compile(r'(?<=[.!?…])\s+')
+            future = asyncio.run_coroutine_threadsafe(
+                agent.run(q, message_history=self._message_history),
+                self._loop,
+            )
+            result = future.result()
 
-            async def _stream_and_tts():
-                buffer = ""
-                async with agent.run_stream(q, message_history=self._message_history) as stream:
-                    async for delta in stream.stream_text(delta=True):
-                        if self._stop_playback.is_set():
-                            break
-                        buffer += delta
-                        full_response[0] += delta
+            self._message_history.extend(result.new_messages())
+            response: str = result.output
+            r = response
+            self.after(0, lambda: self.console.write_detail(f"→ réponse ({len(r)} car.)"))
 
-                        parts = _SENT.split(buffer)
-                        if len(parts) > 1:
-                            for sentence in parts[:-1]:
-                                if sentence.strip() and not self._stop_playback.is_set():
-                                    tts_path = await self._tts.process_text_to_audio_file(sentence.strip())
-                                    audio_queue.put(tts_path)
-                            buffer = parts[-1]
+            # ── Tool calls → console GUI ───────────────────
+            for msg in result.new_messages():
+                if hasattr(msg, "parts"):
+                    for part in msg.parts:
+                        if hasattr(part, "tool_name"):
+                            t = part.tool_name
+                            logger.info("🔧 %s()", t)
 
-                    if buffer.strip() and not self._stop_playback.is_set():
-                        tts_path = await self._tts.process_text_to_audio_file(buffer.strip())
-                        audio_queue.put(tts_path)
-
-                    self._message_history.extend(stream.new_messages())
-
-                audio_queue.put(None)  # sentinel → arrête le consommateur
-
-            # Consommateur : joue les chunks dans l'ordre, s'arrête si _stop_playback
-            def _play_consumer():
-                while True:
-                    tts_path = audio_queue.get()
-                    if tts_path is None:
-                        break
-                    if self._stop_playback.is_set():
-                        tts_path.unlink(missing_ok=True)
-                        # Vide la file des chunks restants
-                        while True:
-                            try:
-                                p = audio_queue.get_nowait()
-                                if p is not None:
-                                    p.unlink(missing_ok=True)
-                            except queue.Empty:
-                                break
-                        break
-                    try:
-                        self._playing = True
-                        self._speaker.play_file(tts_path)
-                    finally:
-                        self._playing = False
-                        tts_path.unlink(missing_ok=True)
-
-            consumer = threading.Thread(target=_play_consumer, daemon=True)
-            consumer.start()
-
-            asyncio.run_coroutine_threadsafe(_stream_and_tts(), self._loop).result()
-
-            # LLM terminé → afficher le Markdown immédiatement (l'audio continue en fond)
-            r = full_response[0]
-            if r:
-                self.after(0, lambda: self.console.write_markdown(r))
-
+            # ── 4. Résultat ───────────────────────────────
             elapsed = time.time() - t_start
             e = elapsed
             self.after(0, lambda: self._set_status("RÉSULTAT", MAUVE))
+            self.after(0, lambda: self.console.write_markdown(r))
+
+            # ── 5. TTS audio ──────────────────────────────
+            tts_future = asyncio.run_coroutine_threadsafe(
+                self._tts.process_text_to_audio_file(r),
+                self._loop,
+            )
+            tts_path = tts_future.result()
+            self._playing = True
+            self._speaker.play_file(tts_path)   # bloque jusqu'à fin ou sd.stop()
+            self._playing = False
+            tts_path.unlink(missing_ok=True)
+
             self.after(0, lambda: self.console.write_detail(f"→ terminé en {e:.1f}s"))
 
         except Exception as ex:
@@ -358,10 +318,6 @@ class SiseClawApp(ctk.CTk):
             self.after(0, lambda: self.console.write_step("❌", "ERREUR", err, "red"))
 
         finally:
-            # Garantit que le consumer se termine toujours (sentinel + join)
-            audio_queue.put(None)
-            if consumer is not None:
-                consumer.join()
             if audio_path and audio_path.exists():
                 audio_path.unlink()
             self.after(0, lambda: self._set_status("PRÊT", GREEN))
@@ -375,7 +331,13 @@ class SiseClawApp(ctk.CTk):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO, format="%(levelname)s [%(name)s] %(message)s")
-    logging.getLogger("httpx").setLevel(logging.WARNING)
+    for _noisy in [
+        "httpx",
+        "src.voice_processing.tts.text_processor",
+        "src.voice_processing.tts.edge_tts_provider",
+        "src.voice_processing.audio_playback",
+    ]:
+        logging.getLogger(_noisy).setLevel(logging.WARNING)
     ctk.set_appearance_mode("dark")
     ctk.set_default_color_theme("dark-blue")
     app = SiseClawApp()

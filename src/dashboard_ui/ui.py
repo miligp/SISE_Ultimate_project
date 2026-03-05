@@ -12,7 +12,8 @@ COLORS = {
     "PEACH": "#FAB387",
     "MAUVE": "#CBA6F7",
     "BORDER": "#313244",
-    "YELLOW": "#F9E2AF"  
+    "YELLOW": "#F9E2AF", 
+    "BLANC": "#FFFFFF"  
 }
 
 # Exportation directe pour un usage plus simple
@@ -29,6 +30,7 @@ PEACH = COLORS["PEACH"]
 MAUVE = COLORS["MAUVE"]
 BORDER = COLORS["BORDER"]
 BLUE = COLORS["BLUE"]
+BLANC = COLORS["BLANC"]
 
 # Configuration des polices
 FONTS = {

@@ -6,6 +6,7 @@ from typing import List, Literal, Optional
 import openpyxl
 import xlwings as xw
 from docx import Document
+import fitz
 
 OUTPUT_DIR: Path = Path(os.getcwd()) / "output_docs"
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -19,7 +20,7 @@ def _get_file_path(filename: str, default_ext: str = ".docx") -> Path:
 def list_local_documents() -> str:
     if not OUTPUT_DIR.exists():
         return "Directory does not exist."
-    files = [f.name for f in OUTPUT_DIR.iterdir() if f.is_file() and f.suffix in ['.docx', '.xlsx', '.txt']]
+    files = [f.name for f in OUTPUT_DIR.iterdir() if f.is_file() and f.suffix in ['.docx', '.xlsx', '.txt', '.pdf']]
     return f"Documents: {', '.join(files)}" if files else "No documents found."
 
 def init_document(filename: str) -> str:
@@ -270,3 +271,17 @@ def refresh_excel_file(filename: str) -> str:
         return f"Succès : Le fichier {filepath.name} a été actualisé. Les formules sont maintenant calculées, tu peux utiliser l'outil de lecture pour voir les résultats."
     except Exception as e:
         return f"Erreur lors de l'actualisation : {e}"
+    
+def read_pdf(filename: str) -> str:
+    path = OUTPUT_DIR / filename
+    if not path.exists() or not path.is_file():
+        return f"Error: File {filename} not found."
+        
+    try:
+        text: list[str] = []
+        with fitz.open(path) as doc:
+            for page in doc:
+                text.append(page.get_text())
+        return "\n".join(text).strip()
+    except Exception as e:
+        return f"Error reading PDF: {e}"

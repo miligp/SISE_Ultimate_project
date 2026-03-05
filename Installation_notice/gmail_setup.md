@@ -88,18 +88,7 @@ Si la connexion échoue, vérifier :
 
 ---
 
-## Comptes compatibles
-
-| Type de compte | Compatible |
-|----------------|-----------|
-| Gmail personnel (@gmail.com) | Oui |
-| Google Workspace (pro/école) | Oui, si l'admin autorise l'IMAP |
-| Outlook / Yahoo / autre | Non (non configuré) |
-
----
-
 ## Securite
 
 - Le mot de passe d'application est different du mot de passe du compte Gmail
 - Il peut etre revoque a tout moment depuis [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
-- Le fichier `.env` ne doit **jamais** etre commit sur GitHub — verifier que `.gitignore` contient bien `.env`

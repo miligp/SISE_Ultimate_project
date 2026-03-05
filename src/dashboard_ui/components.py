@@ -125,54 +125,6 @@ class ConsoleWidget(ctk.CTkTextbox):
         self.configure(state="disabled")
         self.see("end")
 
-    def write_streaming_start(self):
-        """Commence un bloc de texte streamé. Pose un mark pour remplacement final."""
-        self.configure(state="normal")
-        self._textbox.insert("end", "\n", "")
-        # Mark posé APRÈS le \n : on supprimera depuis ici à la fin
-        self._textbox.mark_set("stream_start", "end-1c")
-        self.configure(state="disabled")
-        self.see("end")
-
-    def write_streaming_chunk(self, chunk: str):
-        """Ajoute un fragment de texte brut au bloc de streaming en cours."""
-        self.configure(state="normal")
-        self._textbox.insert("end", chunk, "green")
-        self.configure(state="disabled")
-        self.see("end")
-
-    def write_streaming_end_markdown(self, full_text: str):
-        """Remplace le texte brut streamé par le rendu Markdown final."""
-        self.configure(state="normal")
-        tb = self._textbox
-        try:
-            tb.delete("stream_start", "end")
-        except Exception:
-            pass
-        for line in full_text.split("\n"):
-            if line.startswith("### "):
-                self._insert_inline(tb, f"  {line[4:]}\n", "md_h3")
-            elif line.startswith("## "):
-                self._insert_inline(tb, f"  {line[3:]}\n", "md_h2")
-            elif line.startswith("# "):
-                self._insert_inline(tb, f"  {line[2:]}\n", "md_h1")
-            elif line.strip() == "---":
-                tb.insert("end", f"  {'─' * 40}\n", "dimmer")
-            elif re.match(r'^[\-\*] ', line):
-                tb.insert("end", "  • ", "md_bullet")
-                self._insert_inline(tb, f"{line[2:]}\n", "green")
-            elif re.match(r'^\d+\. ', line):
-                m = re.match(r'^(\d+\. )(.*)', line)
-                tb.insert("end", f"  {m.group(1)}", "md_bullet")
-                self._insert_inline(tb, f"{m.group(2)}\n", "green")
-            elif not line.strip():
-                tb.insert("end", "\n")
-            else:
-                self._insert_inline(tb, f"  {line}\n", "green")
-        tb.insert("end", "\n")
-        self.configure(state="disabled")
-        self.see("end")
-
     def write_tts(self, text: str):
         """Affiche le texte TTS (🔊) en mauve."""
         short = text[:80] + ("..." if len(text) > 80 else "")

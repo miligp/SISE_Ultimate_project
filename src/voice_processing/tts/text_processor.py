@@ -42,7 +42,6 @@ class LLMTextCleaner:
             "organise-les logiquement avec des mots de liaison clairs (ex: 'Premièrement', 'Ensuite', 'Pour résumer') "
             "au lieu d'utiliser des énumérations hachées. "
             "3. NETTOYAGE : Ne génère AUCUN symbole Markdown ou ponctuation anormale. "
-            "RÈGLE ABSOLUE : Commence obligatoirement ta réponse par la phrase exacte : 'ça va aller vite'."
         )
 
         try:

@@ -24,4 +24,5 @@ dependencies = [
     "xlwings>=0.33.20",
     "duckduckgo-search>=8.1.1",
     "ddgs>=9.11.2",
+    "python-vlc>=3.0.21203",
 ]

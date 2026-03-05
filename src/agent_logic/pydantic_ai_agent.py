@@ -162,12 +162,22 @@ async def stream_query(query: str) -> AsyncGenerator[str, None]:
 # ---  MUSIQUE --- #
 
 @agent.tool_plain
-def play_music_tool(query: str) -> str:
+def search_music_tool(query: str) -> str:
     """
-    Recherche une musique sur YouTube et la joue immédiatement sur les enceintes.
-    - query: Le nom de l'artiste, le titre de la chanson, ou le style musical.
+    Recherche une musique sur YouTube et renvoie une liste de 3 propositions.
+    À utiliser TOUJOURS en premier quand l'utilisateur demande une musique. 
+    Tu dois lire les propositions à l'utilisateur et attendre qu'il en choisisse une avant de la jouer.
     """
-    return global_player.play(query)
+    return global_player.search(query)
+
+@agent.tool_plain
+def play_music_tool(url: str) -> str:
+    """
+    Lance la lecture d'une musique.
+    - url: L'URL exacte de la musique, choisie par l'utilisateur.
+    RÈGLE ABSOLUE : Ta réponse vocale après avoir appelé cet outil DOIT faire 3 mots maximum (ex: "C'est parti !", "Je la lance."). Ne répète pas le titre, ne pose aucune question.
+    """
+    return global_player.play(url)
 
 @agent.tool_plain
 def stop_music_tool() -> str:

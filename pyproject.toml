@@ -15,4 +15,5 @@ dependencies = [
     "whisper>=1.1.10",
     "streamlit>=1.40.0",
     "openai-whisper>=20250625",
+    "edge-tts>=7.2.7",
 ]

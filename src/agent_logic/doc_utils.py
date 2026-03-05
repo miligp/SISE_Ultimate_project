@@ -1,4 +1,5 @@
 import os
+import re
 from pathlib import Path
 from typing import List, Literal
 
@@ -17,10 +18,24 @@ def init_document(filename: str) -> str:
     doc.save(_get_doc_path(filename))
     return f"Document {filename} initialisé."
 
+def _add_markdown_paragraph(doc: Document, text: str, style: str | None = None) -> None:
+    """Analyse un texte avec du gras Markdown (**texte**) et l'ajoute au document."""
+    p = doc.add_paragraph(style=style)
+    # Découpe le texte autour des balises **
+    parts = re.split(r'(\*\*.*?\*\*)', text)
+    
+    for part in parts:
+        if part.startswith('**') and part.endswith('**'):
+            # On enlève les étoiles et on met en gras
+            run = p.add_run(part[2:-2])
+            run.bold = True
+        else:
+            p.add_run(part)
+
 def append_to_document(
     filename: str, 
     content: str, 
-    element_type: Literal["paragraph", "heading"] = "paragraph",
+    element_type: Literal["paragraph", "heading", "list_item"] = "paragraph",
     level: int = 1
 ) -> str:
     filepath: Path = _get_doc_path(filename)
@@ -31,9 +46,13 @@ def append_to_document(
         doc = Document(filepath)
         
     if element_type == "heading":
-        doc.add_heading(content, level=level)
+        # On nettoie les éventuelles étoiles générées par erreur dans les titres
+        clean_content = content.replace('**', '')
+        doc.add_heading(clean_content, level=level)
+    elif element_type == "list_item":
+        _add_markdown_paragraph(doc, content, style='List Bullet')
     else:
-        doc.add_paragraph(content)
+        _add_markdown_paragraph(doc, content)
         
     doc.save(filepath)
     return f"Élément ({element_type}) ajouté à {filename}."

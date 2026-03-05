@@ -258,11 +258,12 @@ uv run python src/app_gui.py
 ---
 
 <div align="center">
-*Master 2 SISE — Université Lumière Lyon 2 · 2025–2026*
+Master 2 SISE — Université Lumière Lyon 2 · 2025–2026
 </div>
 <div align="center">
-*Romain BUONO - Constantin REY-COQUAIS - Milena GORDIEN PIQUET*
+Romain BUONO - Constantin REY-COQUAIS - Milena GORDIEN PIQUET
 </div>
+
 
 
 

@@ -1,5 +1,7 @@
 <div align="center">
 
+<img width="180" alt="SISE-CLAW logo" src="Installation_notice/img/Image4.jpg" />
+
 # 🎙️ SISE-CLAW
 
 ### *Listen. Think. Speak.*

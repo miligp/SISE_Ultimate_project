@@ -175,7 +175,6 @@ src/
   ```
 - **VLC Media Player** (uniquement pour la musique) — [télécharger](https://www.videolan.org/vlc/) en version **64-bit**
 > VLC doit être en **version 64-bit** pour être compatible avec `python-vlc`.
-- **ffmpeg** (uniquement pour Whisper) :
 - **libportaudio2** (si WSL/Linux) 
 
 - Ouvrir un terminal PowerShell et exécuter :
@@ -269,6 +268,7 @@ Master 2 SISE — Université Lumière Lyon 2 · 2025–2026
 <div align="center">
 Romain BUONO - Constantin REY-COQUAIS - Milena GORDIEN PIQUET
 </div>
+
 
 
 

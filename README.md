@@ -256,18 +256,13 @@ uv run python src/app_gui.py
 "Quelles sont les dernières nouvelles en intelligence artificielle ?"
 "Trouve-moi un restaurant italien à Lyon"
 ```
-
-### Tester l'agent sans l'interface graphique
-
-```bash
-uv run python -m src.agent_logic.test_agent
-```
-
 ---
 
 <div align="center">
 
 *Master 2 SISE — Université Lumière Lyon 2 · 2025–2026*
+*Romain BUONO - Constantion REY-COQUAIS - Milena GORDIEN PIQUET*
 
 </div>
+
 

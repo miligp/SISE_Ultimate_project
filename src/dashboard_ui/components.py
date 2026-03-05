@@ -65,16 +65,17 @@ class ConsoleWidget(ctk.CTkTextbox):
         self.configure(state="disabled")
         self.see("end")
 
-    def _insert_inline(self, tb, text: str, base_tag: str = None):
+    def _insert_inline(self, tb, text: str, base_tag: str = None) -> None:
         """
         Insère du texte dans le Textbox en gérant le Markdown (gras) et les tags de base.
-        Version robuste contre les crashs Tcl/Tkinter (wrong # args).
+        Version robuste contre les crashs Tcl/Tkinter.
         """
         import re
+        # Un seul groupe de capture (les parenthèses)
         m = re.search(r'\*\*(.*?)\*\*', text)
         
         if m:
-            # 1. On insère le texte AVANT le gras (s'il n'est pas vide)
+            # 1. On insère le texte AVANT le gras
             before_text = text[:m.start()]
             if before_text:
                 if base_tag:
@@ -82,10 +83,10 @@ class ConsoleWidget(ctk.CTkTextbox):
                 else:
                     tb.insert("end", before_text)
             
-            # 2. On insère le texte EN GRAS (s'il n'est pas vide)
-            bold_text = m.group(2)
+            # 2. On insère le texte EN GRAS
+            # CORRECTION ICI : m.group(1) cible notre unique groupe de capture
+            bold_text = m.group(1)
             if bold_text:
-                # L'astuce Lead : On combine les tags dans un Tuple pour Tcl
                 tags = ("md_bold", base_tag) if base_tag else ("md_bold",)
                 tb.insert("end", bold_text, tags)
             

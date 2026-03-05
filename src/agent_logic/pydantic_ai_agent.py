@@ -174,10 +174,11 @@ def search_music_tool(query: str) -> str:
 def play_music_tool(url: str) -> str:
     """
     Lance la lecture d'une musique.
-    - url: L'URL exacte de la musique, choisie par l'utilisateur.
-    RÈGLE ABSOLUE : Ta réponse vocale après avoir appelé cet outil DOIT faire 3 mots maximum (ex: "C'est parti !", "Je la lance."). Ne répète pas le titre, ne pose aucune question.
+    - url: L'URL exacte de la musique, choisie par l'utilisateur suite à la recherche.
     """
     return global_player.play(url)
+
+# (Vous pouvez garder pause_music_tool, resume_music_tool et stop_music_tool tels quels)
 
 @agent.tool_plain
 def stop_music_tool() -> str:

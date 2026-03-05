@@ -64,15 +64,9 @@ class MusicPlayer:
                 self._player = self._instance.media_player_new()
                 media = self._instance.media_new(stream_url)
                 self._player.set_media(media)
-                # Exécution différée de la lecture pour éviter la superposition avec le TTS
-                def delayed_play() -> None:
-                    time.sleep(2.0)
-                    if self._player:
-                        self._player.play()
-                        
-                threading.Thread(target=delayed_play, daemon=True).start()
+                self._player.play()
                 
-                return "Lecture prête. Consigne stricte : réponds UNIQUEMENT 'C'est parti !' ou équivalent (3 mots maximum)."
+                return f"Lecture lancée avec succès : {title}"
                 
         except Exception as e:
             return f"Erreur technique : {str(e)}"

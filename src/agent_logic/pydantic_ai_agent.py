@@ -5,29 +5,28 @@ Agent pydantic-ai utilisant email_utils.py pour la recherche, la lecture et l'en
 import asyncio
 import os
 from datetime import datetime
-from typing import AsyncGenerator, Optional
+from typing import AsyncGenerator, Optional, Literal
 
 from dotenv import load_dotenv
 from pydantic_ai import Agent
 
 from src.agent_logic.email_utils import search_emails, send_email
+from src.agent_logic.doc_utils import init_document, append_to_document, read_document
 
 load_dotenv()
 
 LLM_MODEL = os.getenv("LLM_MODEL", "mistral:mistral-large-latest")
 
 def get_system_prompt() -> str:
-    """Génère le prompt système en y injectant la date actuelle pour le formatage IMAP."""
     current_date = datetime.now().strftime("%d-%b-%Y")
     return (
-        "Tu es un assistant personnel intelligent. Les inputs que tu reçois sont issus d'une transcription de la voix de l'utilisateur, il peut y avoir des imprécisions."
-        "Tu as accès à des fonctions pour rechercher, lire et envoyer des emails. "
-        "Réponds toujours en français sauf si l'utilisateur parle une autre langue. "
-        "Sois concis et précis. "
-        f"La date actuelle est {current_date} (format IMAP). Utilise ce format exact pour le paramètre 'since_date' si nécessaire. "
-        "RÈGLE CRITIQUE : Ne déclenche JAMAIS l'outil `send_email` de ta propre initiative. "
-        "Tu dois d'abord présenter le brouillon (destinataire, objet, corps) à l'utilisateur, "
-        "puis attendre sa confirmation explicite avant d'exécuter l'outil."
+        "Tu es un assistant personnel intelligent contrôlé à la voix. "
+        "L'utilisateur peut être malvoyant : sois descriptif sur les actions effectuées et n'hésite pas à relire les modifications. "
+        "Pour la rédaction de documents (.docx) : procède étape par étape. Demande d'abord le titre, puis l'en-tête, puis paragraphe par paragraphe. "
+        "Ne génère jamais un document entier sans valider chaque section avec l'utilisateur. "
+        "Réponds toujours en français, sois concis et précis. "
+        f"Date actuelle : {current_date} (format IMAP). "
+        "RÈGLE CRITIQUE (Email) : Présente toujours le brouillon et attends une confirmation explicite avant d'utiliser `dispatch_email`."
     )
 
 agent = Agent(
@@ -66,6 +65,30 @@ async def stream_query(query: str) -> AsyncGenerator[str, None]:
     async with agent.run_stream(query) as streamed:
         async for chunk in streamed.stream_text(delta=True):
             yield chunk
+
+@agent.tool_plain
+def init_doc_tool(filename: str) -> str:
+    """Crée un nouveau document Word vide ou écrase un document existant."""
+    return init_document(filename)
+
+@agent.tool_plain
+def append_doc_tool(
+    filename: str, 
+    content: str, 
+    element_type: Literal["paragraph", "heading"] = "paragraph",
+    level: int = 1
+) -> str:
+    """
+    Ajoute un bloc de texte à la fin du document Word.
+    - element_type: "heading" pour un titre, "paragraph" pour du texte normal.
+    - level: niveau du titre (1 à 9), ignoré si element_type est "paragraph".
+    """
+    return append_to_document(filename, content, element_type, level)
+
+@agent.tool_plain
+def read_doc_tool(filename: str) -> str:
+    """Lit l'intégralité du contenu actuel du document Word."""
+    return read_document(filename)
 
 if __name__ == "__main__":
     TEST_QUERIES = [

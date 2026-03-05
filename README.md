@@ -170,11 +170,29 @@ src/
   powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
   ```
 - **VLC Media Player** (uniquement pour la musique) — [télécharger](https://www.videolan.org/vlc/) en version **64-bit**
+> VLC doit être en **version 64-bit** pour être compatible avec `python-vlc`.
+
+- Ouvrir un terminal PowerShell et exécuter :
+
+```powershell
+# Python 3.13
+winget install Python.Python.3.13
+
+# uv — gestionnaire de paquets Python
+winget install astral-sh.uv
+
+# VLC Media Player — requis pour la lecture de musique (python-vlc)
+winget install VideoLAN.VLC
+
+# ffmpeg — requis par Whisper (STT local) et le traitement audio
+winget install Gyan.FFmpeg
+```
+> Redémarrer le terminal après ces installations pour que le PATH soit mis à jour.
 
 ### 2. Cloner et installer
 
 ```bash
-git clone <url-du-repo>
+git clone https://github.com/miligp/SISE_Ultimate_project.git
 cd SISE_Ultimate_project
 
 # Créer l'environnement et installer toutes les dépendances
@@ -252,3 +270,4 @@ uv run python -m src.agent_logic.test_agent
 *Master 2 SISE — Université Lumière Lyon 2 · 2025–2026*
 
 </div>
+

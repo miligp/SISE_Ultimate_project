@@ -30,7 +30,7 @@
 Les interfaces numériques actuelles — formulaires, menus, clavier, souris — constituent une **barrière d'accès** pour deux populations en forte croissance :
 
 - **Les personnes âgées** : difficultés motrices (arthrose, tremblements), baisse de la vue, anxiété face aux interfaces complexes. Beaucoup abandonnent l'usage du numérique faute d'accompagnement adapté.
-- **Les personnes malvoyantes ou non-voyantes** : les lecteurs d'écran existants (NVDA, VoiceOver) restent techniques et peu intuitifs pour des tâches courantes comme rédiger un email ou chercher une information.
+- **Les personnes mal- ou non-voyantes** : les lecteurs d'écran existants (NVDA, VoiceOver) restent techniques et peu intuitifs pour des tâches courantes comme rédiger un email ou chercher une information.
 
 
 ### Solution proposée
@@ -268,6 +268,7 @@ Master 2 SISE — Université Lumière Lyon 2 · 2025–2026
 <div align="center">
 Romain BUONO - Constantin REY-COQUAIS - Milena GORDIEN PIQUET
 </div>
+
 
 
 

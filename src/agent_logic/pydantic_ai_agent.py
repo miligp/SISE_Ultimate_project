@@ -23,6 +23,16 @@ from src.agent_logic.doc_utils import (
 
 from src.agent_logic.music_utils import global_player
 
+from src.agent_logic.router_utils import (
+    fetch_weather, 
+    fetch_news, 
+    fetch_places, 
+    web_search,
+    fetch_route
+)
+
+from typing import Literal # Ajoute cet import si ce n'est pas déjà fait
+
 load_dotenv()
 
 LLM_MODEL = os.getenv("LLM_MODEL", "mistral:mistral-large-latest")
@@ -32,6 +42,7 @@ def get_system_prompt() -> str:
     return (
         "Tu es un assistant personnel intelligent contrôlé à la voix. "
         "L'utilisateur peut être malvoyant : sois descriptif sur les actions effectuées et n'hésite pas à relire les modifications. "
+        "Tu es connecté à Internet : utilise tes outils pour chercher la météo, l'actualité, des lieux ou faire des recherches web si l'utilisateur pose une question d'actualité ou de culture générale. "
         "Tu es également un DJ personnel : tu peux chercher de la musique, la lancer, la mettre en pause, la reprendre ou l'arrêter complètement. "
         "Pour la rédaction de documents (.docx, .xlsx) : procède étape par étape. Demande ce dont tu as besoin pour guider l'utilisateur dans la création/lecture du document. "
         "Garde en mémoire le nom du fichier sur lequel tu travailles pour ne pas avoir à le redemander à chaque fois. "
@@ -148,6 +159,8 @@ async def stream_query(query: str) -> AsyncGenerator[str, None]:
         async for chunk in streamed.stream_text(delta=True):
             yield chunk
 
+# ---  MUSIQUE --- #
+
 @agent.tool_plain
 def search_music_tool(query: str) -> str:
     """
@@ -189,6 +202,62 @@ def resume_music_tool() -> str:
     À utiliser quand l'utilisateur dit "remets la musique", "reprends", "play", etc.
     """
     return global_player.resume()
+
+# ---  METEO --- #
+
+@agent.tool_plain
+async def get_weather_tool(city: str) -> dict:
+    """
+    Fournit la météo actuelle pour une ville donnée.
+    À utiliser dès que l'utilisateur demande le temps qu'il fait.
+    - city: Nom de la ville (ex: "Lyon", "Paris").
+    """
+    return await fetch_weather(city)
+
+# ---  ACTUALITES --- #
+
+@agent.tool_plain
+async def get_news_tool(topic: str) -> dict:
+    """
+    Fournit les gros titres de l'actualité sur un sujet donné.
+    - topic: Sujet de la recherche (ex: "technologie", "politique", "sport").
+    """
+    return await fetch_news(topic)
+
+# ---  POINTS D'INTERETS --- #
+
+@agent.tool_plain
+async def find_places_tool(category: str, location: str) -> dict:
+    """
+    Recherche des points d'intérêts (restaurants, stations-service, musées, etc.).
+    - category: Le type de lieu recherché (ex: "restaurant italien", "pharmacie").
+    - location: La ville ou le quartier cible.
+    """
+    return await fetch_places(category, location)
+
+@agent.tool_plain
+async def web_search_tool(query: str) -> dict:
+    """
+    Effectue une recherche sur internet (DuckDuckGo).
+    À utiliser pour répondre à une question de culture générale, vérifier un fait, 
+    ou si l'information n'est pas couverte par les autres outils.
+    - query: La question courte et précise à poser au moteur de recherche.
+    """
+    return await web_search(query)
+
+# ---  GPS --- #
+
+@agent.tool_plain
+async def get_route_tool(origin: str, destination: str, mode: Literal["driving", "cycling", "walking"] = "cycling") -> dict:
+    """
+    Calcule le temps de trajet routier exact et la distance entre deux adresses ou lieux.
+    À utiliser dès que l'utilisateur demande "combien de temps", "quelle distance", ou "itinéraire".
+    - origin: Adresse ou lieu de départ.
+    - destination: Adresse ou lieu d'arrivée.
+    - mode: Le moyen de transport ("driving" pour la voiture, "cycling" pour le vélo, "walking" pour à pied).
+    """
+    return await fetch_route(origin, destination, mode)
+
 
 if __name__ == "__main__":
     TEST_QUERIES = [

@@ -14,7 +14,7 @@
 
 **Assistant personnel intelligent contrôlé à la voix**
 
-*Projet de Master 2 SISE — Data Science*
+*Sprint de 2 jours Master 2 SISE — Data Science*
 *Université Lumière Lyon 2 · 2025–2026*
 
 [Contexte](#contexte-et-problématique) • [Approche](#solution-proposée) • [Architecture](#-architecture) • [Technologies](#-technologies) • [Installation](#-installation) • [Mode d'emploi](#-mode-demploi)
@@ -35,7 +35,7 @@ Les interfaces numériques actuelles — formulaires, menus, clavier, souris —
 
 ### Solution proposée
 
-SISE-CLAW est un **assistant vocal personnel de bureau** conçu pour être utilisé entièrement à la voix, sans clavier. L'objectif est de centraliser dans une seule interface les tâches quotidiennes : email, bureautique, recherche web, musique, météo.
+SISE-CLAW est un **assistant vocal personnel** conçu pour être utilisé entièrement à la voix, sans clavier. L'objectif est de centraliser dans une seule interface les tâches quotidiennes : email, bureautique, recherche web, loisirs, musique, trajets, météo.
 
 Concrètement, une personne âgée ou malvoyante peut :
 
@@ -43,9 +43,9 @@ Concrètement, une personne âgée ou malvoyante peut :
 |--------|----------------|
 | Lire ses emails | *"Quels sont mes derniers emails ?"* |
 | Écrire un message | *"Envoie un email à ma fille pour lui souhaiter bon anniversaire"* |
-| Écouter de la musique | *"Lance la macarena"* |
-| Savoir la météo | *"Quel temps fait-il à Lyon aujourd'hui ?"* |
-| Retrouver un itinéraire | *"Quelle est la distance entre Lyon à Annecy ?"* |
+| Écouter de la musique | *"Lance le morceau la Foule d'Edith Piaf"* |
+| Consulter la météo | *"Quel temps fait-il à Lyon aujourd'hui ?"* |
+| Calculer un temps de trajet | *"Combien de temps vais-je mettre en voiture entre Lyon à Annecy ?"* |
 | Créer un document | *"Écris une liste de courses dans un fichier Word"* |
 
 L'agent répond toujours **vocalement et en français**, de façon concise. Il est configuré pour **décrire systématiquement ses actions** (ex : *"J'ai bien trouvé 3 emails de votre médecin, voici le dernier..."*) pour que l'utilisateur suive sans regarder l'écran.
@@ -64,6 +64,7 @@ Ce projet s'inspire des architectures d'agents LLM open-source (LangChain, AutoG
 | STT | Modèle unique | Cascade failover (Deepgram → Groq → Whisper local) |
 | TTS | Brut (texte → voix) | Normalisation orale via LLM avant synthèse |
 | Outils | Génériques | Spécialisés (email IMAP, Excel xlwings, VLC, GPS) |
+
                                   
 ---
 
@@ -263,6 +264,7 @@ Master 2 SISE — Université Lumière Lyon 2 · 2025–2026
 <div align="center">
 Romain BUONO - Constantin REY-COQUAIS - Milena GORDIEN PIQUET
 </div>
+
 
 
 

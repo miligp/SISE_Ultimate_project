@@ -5,12 +5,17 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
+# Chargement de l'environnement (pour les clés API Deepgram/Groq)
+from dotenv import load_dotenv
+
 # Imports de l'Agent et des messages
 from pydantic_ai.messages import ModelMessage
 from src.agent_logic.pydantic_ai_agent import agent 
 
-# Imports Voice Processing (STT)
+# Imports Voice Processing (STT) avec le nouveau Fallback Intelligent
 from src.voice_processing.audio_capture import MicrophoneRecorder
+from src.voice_processing.stt.deepgram_provider import DeepgramSTTProvider
+from src.voice_processing.stt.groq_provider import GroqSTTProvider
 from src.voice_processing.stt.whisper_provider import WhisperSTT
 from src.voice_processing.stt.transcription_manager import TranscriptionManager
 
@@ -19,6 +24,10 @@ from src.voice_processing.tts.edge_tts_provider import EdgeTTSProvider
 from src.voice_processing.tts.synthesis_manager import SynthesisManager
 from src.voice_processing.audio_playback import AudioSpeaker
 
+# 1. Résolution du chemin racine et chargement des clés API (.env)
+project_root = Path(__file__).parent.parent
+load_dotenv(dotenv_path=project_root / ".env")
+
 # Configuration du logging
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
@@ -26,13 +35,21 @@ logger = logging.getLogger(__name__)
 async def voice_chat_loop() -> None:
     """
     Boucle principale d'interaction vocale en continu.
-    Flux : Écoute -> Transcription -> Agent -> Synthèse Vocale -> Lecture.
+    Flux : Écoute -> Transcription (Fallback STT) -> Agent -> Synthèse Vocale -> Lecture.
     """
-    # 1. Initialisation des composants (Injection de dépendances)
+    # 2. Initialisation des composants (Injection de dépendances)
+    
     # --- Composants d'Entrée (Micro -> Texte) ---
     recorder = MicrophoneRecorder(sample_rate=16000, channels=1)
-    stt_provider = WhisperSTT(model_name="small")
-    stt_manager = TranscriptionManager(provider=stt_provider)
+    
+    # 🌟 Le coeur de la nouvelle architecture STT : La chaîne de priorité
+    stt_providers = [
+        DeepgramSTTProvider(),            # Priorité 1 : Ultra rapide (API)
+        GroqSTTProvider(),                # Priorité 2 : Whisper V3 (API)
+        WhisperSTT(model_name="small")    # Priorité 3 : Fallback Local (Offline)
+    ]
+    # On injecte la liste de providers au lieu d'un seul
+    stt_manager = TranscriptionManager(providers=stt_providers)
 
     # --- Composants de Sortie (Texte -> HP) ---
     tts_provider = EdgeTTSProvider(voice="fr-FR-DeniseNeural")
@@ -43,7 +60,7 @@ async def voice_chat_loop() -> None:
 
     print("\n" + "="*50)
     print("   COPILOTE VOCAL INTERACTIF INITIALISÉ")
-    print("   Mode : Écoute active (détection de silence)")
+    print("   Mode : Écoute active avec STT Haute Disponibilité")
     print("   Quitter : Ctrl+C")
     print("="*50)
 
@@ -54,10 +71,10 @@ async def voice_chat_loop() -> None:
         try:
             # --- PHASE 1 : ÉCOUTE ACTIVE ---
             print("\n🎤 Écoute en cours (parlez maintenant)...")
-            # Cette méthode doit gérer la détection de silence en interne
             input_audio_path = recorder.record_until_silence()
             
-            # --- PHASE 2 : SPEECH-TO-TEXT ---
+            # --- PHASE 2 : SPEECH-TO-TEXT (Intelligent) ---
+            # Le manager va tester Deepgram, puis Groq, puis Whisper de manière transparente
             transcription_result = stt_manager.process_audio(input_audio_path, language="fr")
             query: str = transcription_result.text.strip()
             
@@ -81,7 +98,6 @@ async def voice_chat_loop() -> None:
             output_audio_path = await tts_manager.process_text_to_audio_file(agent_response)
             
             # --- PHASE 5 : DIFFUSION AUDIO ---
-            # Lecture bloquante pour que l'agent finisse de parler avant de réécouter
             speaker.play_file(output_audio_path)
 
         except KeyboardInterrupt:

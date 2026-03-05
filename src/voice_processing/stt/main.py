@@ -12,7 +12,7 @@ def main() -> None:
     audio_file: Path = base_dir / "src" / "voice_processing" / "professor_voice.mp3"
 
     # 2. Instanciation du fournisseur (la technologie concrète)
-    whisper_provider = WhisperSTT(model_name="small") # "base", "small", "medium", etc.
+    whisper_provider = WhisperSTT(model_name="base") # "base", "small", "medium", etc.
 
     # 3. Injection du fournisseur dans le manager (le métier)
     manager = TranscriptionManager(provider=whisper_provider)

@@ -11,7 +11,13 @@ from dotenv import load_dotenv
 from pydantic_ai import Agent
 
 from src.agent_logic.email_utils import search_emails, send_email
-from src.agent_logic.doc_utils import init_document, append_to_document, read_document
+from src.agent_logic.doc_utils import (
+    init_document, 
+    append_to_document, 
+    replace_in_document, 
+    list_local_documents, 
+    read_document_unified
+)
 
 load_dotenv()
 
@@ -22,7 +28,8 @@ def get_system_prompt() -> str:
     return (
         "Tu es un assistant personnel intelligent contrôlé à la voix. "
         "L'utilisateur peut être malvoyant : sois descriptif sur les actions effectuées et n'hésite pas à relire les modifications. "
-        "Pour la rédaction de documents (.docx) : procède étape par étape. Demande d'abord le titre, puis l'en-tête, puis paragraphe par paragraphe. "
+        "Pour la rédaction de documents (.docx, .xlsx) : procède étape par étape. Demande ce dont tu as besoin pour guider l'utilisateur dans la création/lecture du document. "
+        "Garde en mémoire le nom du fichier sur lequel tu travailles pour ne pas avoir à le redemander à chaque fois. "
         "Ne génère jamais un document entier sans valider chaque section avec l'utilisateur. "
         "Réponds toujours en français, sois concis et précis. "
         f"Date actuelle : {current_date} (format IMAP). "
@@ -33,6 +40,8 @@ agent = Agent(
     model=LLM_MODEL,
     system_prompt=get_system_prompt(),
 )
+
+# --- OUTILS EMAILS ---
 
 @agent.tool_plain
 def fetch_emails_tool(
@@ -55,6 +64,56 @@ def dispatch_email(to_address: str, subject: str, body: str) -> str:
     """Envoie un email après validation explicite de l'utilisateur."""
     return send_email(to_address, subject, body)
 
+# --- OUTILS BUREAUTIQUE ---
+
+@agent.tool_plain
+def list_documents_tool() -> str:
+    """
+    Liste les documents (.docx, .xlsx, .txt) actuellement disponibles dans le répertoire de travail local.
+    À utiliser quand l'utilisateur demande quels fichiers sont présents, ou avant de lire/modifier un fichier dont on n'est pas sûr du nom exact.
+    """
+    return list_local_documents()
+
+@agent.tool_plain
+def read_document_tool(filename: str, sheet_name: Optional[str] = None) -> str:
+    """
+    Lit le contenu d'un document (.docx, .txt, .xlsx).
+    - filename: Nom exact du fichier (avec extension).
+    - sheet_name: Optionnel, uniquement pour cibler un onglet précis dans un classeur Excel (.xlsx).
+    """
+    return read_document_unified(filename, sheet_name)
+
+@agent.tool_plain
+def init_doc_tool(filename: str) -> str:
+    """Crée un nouveau document Word (.docx) vide ou écrase un document existant."""
+    return init_document(filename)
+
+@agent.tool_plain
+def append_doc_tool(
+    filename: str, 
+    content: str, 
+    element_type: Literal["paragraph", "heading", "list_item"] = "paragraph",
+    level: int = 1
+) -> str:
+    """
+    Ajoute un bloc de texte à la fin du document Word (.docx).
+    - element_type: "heading" (titre), "paragraph" (texte normal), ou "list_item" (puce de liste).
+    - level: niveau du titre (1 à 9), ignoré sinon.
+    NOTE: Tu peux utiliser **texte** dans le `content` pour mettre des mots en gras.
+    """
+    return append_to_document(filename, content, element_type, level)
+
+@agent.tool_plain
+def edit_doc_tool(filename: str, old_text: str, new_text: str) -> str:
+    """
+    Modifie un document Word existant en remplaçant un passage exact par un autre.
+    - old_text: L'extrait de texte exact à chercher (ne met pas tout le paragraphe, juste la phrase à changer).
+    - new_text: Le nouveau texte qui remplacera l'ancien.
+    """
+    return replace_in_document(filename, old_text, new_text)
+
+# --- EXECUTION ---
+
 async def run_query(query: str) -> str:
     """Exécute une requête textuelle via l'agent et retourne la réponse."""
     result = await agent.run(query)
@@ -65,30 +124,6 @@ async def stream_query(query: str) -> AsyncGenerator[str, None]:
     async with agent.run_stream(query) as streamed:
         async for chunk in streamed.stream_text(delta=True):
             yield chunk
-
-@agent.tool_plain
-def init_doc_tool(filename: str) -> str:
-    """Crée un nouveau document Word vide ou écrase un document existant."""
-    return init_document(filename)
-
-@agent.tool_plain
-def append_doc_tool(
-    filename: str, 
-    content: str, 
-    element_type: Literal["paragraph", "heading"] = "paragraph",
-    level: int = 1
-) -> str:
-    """
-    Ajoute un bloc de texte à la fin du document Word.
-    - element_type: "heading" pour un titre, "paragraph" pour du texte normal.
-    - level: niveau du titre (1 à 9), ignoré si element_type est "paragraph".
-    """
-    return append_to_document(filename, content, element_type, level)
-
-@agent.tool_plain
-def read_doc_tool(filename: str) -> str:
-    """Lit l'intégralité du contenu actuel du document Word."""
-    return read_document(filename)
 
 if __name__ == "__main__":
     TEST_QUERIES = [

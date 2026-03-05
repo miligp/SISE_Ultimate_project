@@ -140,7 +140,7 @@ class ConsoleWidget(ctk.CTkTextbox):
         self.insert("end", "\n")
         for item in items:
             self.insert("end", "  ✓ ", "green")
-            self.insert("end", f"{item}\n", "dim")
+            self.insert("end", f"{item}\n", "blanc")
         self.insert("end", "\n")
         self.insert("end", "  ─ Prêt. Appuyez sur Entrée pour parler ─────────────\n", "dimmer")
         self.insert("end", "\n")

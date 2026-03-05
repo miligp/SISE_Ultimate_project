@@ -2,32 +2,39 @@
 import logging
 import edge_tts
 from pathlib import Path
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 class EdgeTTSProvider:
     """
     Fournisseur TTS ultra-léger utilisant l'API Microsoft Edge.
-    Pas besoin de modèle local, pas besoin de voix de référence.
+    Intègre le contrôle dynamique du débit (rate) pour une diction plus humaine.
     """
-    def __init__(self, voice: str = "fr-FR-DeniseNeural") -> None:
+    def __init__(self, voice: str = "fr-FR-DeniseNeural", rate: str = "+15%") -> None:
         """
-        Initialise le fournisseur avec une voix par défaut.
-        Options populaires : 'fr-FR-DeniseNeural' (Femme), 'fr-FR-HenriNeural' (Homme).
+        Initialise le fournisseur.
+        
+        Args:
+            voice: L'identifiant de la voix Microsoft (ex: 'fr-FR-DeniseNeural').
+            rate: Ajustement de la vitesse sous forme de pourcentage (ex: '+20%', '-10%', '+0%').
         """
         self.voice: str = voice
+        self.rate: str = rate
 
-    async def synthesize(self, text: str, output_path: Path, reference_voice_path: Path | None = None) -> Path:
+    async def synthesize(self, text: str, output_path: Path, reference_voice_path: Optional[Path] = None) -> Path:
         """
-        Génère l'audio à partir du texte. 
-        Note : reference_voice_path est ignoré ici car nous n'utilisons plus de clonage.
+        Génère l'audio à partir du texte avec le débit configuré. 
         """
-        logger.info("Génération de la voix (Edge-TTS) pour : '%s...'", text[:30])
+        logger.info("🔊 Génération vocale (Vitesse: %s) pour : '%s...'", self.rate, text[:30])
         
-        # Création de l'objet de communication avec Microsoft
-        communicate = edge_tts.Communicate(text, self.voice)
+        # Injection du paramètre 'rate' directement dans la communication avec l'API
+        communicate = edge_tts.Communicate(
+            text=text, 
+            voice=self.voice, 
+            rate=self.rate
+        )
         
-        # Sauvegarde du flux audio vers le fichier
         await communicate.save(str(output_path))
         
         return output_path

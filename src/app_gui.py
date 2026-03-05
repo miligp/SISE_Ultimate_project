@@ -13,10 +13,20 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
+import math
+
+import numpy as np
+import sounddevice as sd
+
 logger = logging.getLogger(__name__)
 
 # Ajoute la racine du projet à sys.path pour que "src" soit importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# Chargement des clés API (.env)
+from dotenv import load_dotenv
+_project_root = Path(__file__).resolve().parent.parent
+load_dotenv(dotenv_path=_project_root / ".env")
 
 import customtkinter as ctk
 from pydantic_ai.messages import ModelMessage
@@ -25,6 +35,8 @@ from src.dashboard_ui.ui import BG, RED, SURFACE, TEXT, DIMMER, CYAN, BLUE, GREE
 from src.dashboard_ui.components import ConsoleWidget, MicButton
 
 from src.voice_processing.audio_capture import MicrophoneRecorder
+from src.voice_processing.stt.deepgram_provider import DeepgramSTTProvider
+from src.voice_processing.stt.groq_provider import GroqSTTProvider
 from src.voice_processing.stt.whisper_provider import WhisperSTT
 from src.voice_processing.stt.transcription_manager import TranscriptionManager
 from src.voice_processing.tts.edge_tts_provider import EdgeTTSProvider
@@ -46,11 +58,15 @@ class SiseClawApp(ctk.CTk):
 
         # ── State ─────────────────────────────────────────
         self._running = False
+        self._playing = False   # True uniquement pendant la lecture TTS
         self._message_history: List[ModelMessage] = []
         self._recorder = MicrophoneRecorder(sample_rate=16000, channels=1)
-        self._provider = WhisperSTT(model_name="base")
-        self._manager = TranscriptionManager(provider=self._provider)
-        self._tts = SynthesisManager(EdgeTTSProvider())
+        self._manager = TranscriptionManager(providers=[
+            DeepgramSTTProvider(),
+            GroqSTTProvider(),
+            WhisperSTT(model_name="small"),
+        ])
+        self._tts = SynthesisManager(EdgeTTSProvider(voice="fr-FR-DeniseNeural"))
         self._speaker = AudioSpeaker()
 
         # ── Loop asyncio persistant ───────────────────────
@@ -116,15 +132,33 @@ class SiseClawApp(ctk.CTk):
         self.console.pack(fill="both", expand=True)
 
     def _build_controls(self):
-        controls = ctk.CTkFrame(self, fg_color=SURFACE, height=70, corner_radius=0)
+        controls = ctk.CTkFrame(self, fg_color=SURFACE, height=110, corner_radius=0)
         controls.pack(fill="x", padx=0, pady=0, side="bottom")
         controls.pack_propagate(False)
 
         inner = ctk.CTkFrame(controls, fg_color="transparent")
-        inner.pack(pady=12)
+        inner.pack(side="top", pady=(8, 2))
 
         self.mic_btn = MicButton(inner, command=self._on_mic_click)
         self.mic_btn.pack(side="left", padx=8)
+
+        # ── Hint ──────────────────────────────────────────
+        self._hint_label = ctk.CTkLabel(
+            controls,
+            text="Prêt. Appuyez sur Entrée pour parler.",
+            font=ctk.CTkFont(family="Consolas", size=10),
+            text_color=DIMMER,
+        )
+        self._hint_label.pack(side="top", pady=(0, 1))
+
+        # ── Jauge de volume ───────────────────────────────
+        self._vol_label = ctk.CTkLabel(
+            controls,
+            text="",
+            font=ctk.CTkFont(family="Consolas", size=10),
+            text_color=TEXT,
+        )
+        self._vol_label.pack(side="top", pady=(0, 2))
 
         ctk.CTkLabel(
             controls,
@@ -141,15 +175,48 @@ class SiseClawApp(ctk.CTk):
         self._status_dot.configure(text_color=color)
         self._status_label.configure(text=label, text_color=color)
 
+    def _start_vol_monitor(self) -> threading.Event:
+        """Lance un thread qui lit le micro et affiche une sinusoïde animée."""
+        stop = threading.Event()
+        threshold = self._recorder.threshold
+        _WAVE = " ▁▂▃▄▅▆▇█"
+        W = 20  # largeur de la courbe
+
+        def _monitor():
+            phase = 0.0
+            try:
+                with sd.InputStream(samplerate=16000, channels=1, dtype="float32") as stream:
+                    while not stop.is_set():
+                        data, _ = stream.read(1600)  # ~100 ms
+                        volume = float(np.sqrt(np.mean(data ** 2)))
+                        amplitude = min(volume * 18, 1.0)
+                        wave = ""
+                        for i in range(W):
+                            val = 0.5 + 0.5 * math.sin(phase + i * 2 * math.pi / 8)
+                            idx = round(val * amplitude * 8)
+                            wave += _WAVE[max(0, min(8, idx))]
+                        phase = (phase + 0.4) % (2 * math.pi)
+                        status = "🗣️ REC" if volume >= threshold else "⏳ ATTENTE"
+                        text = f"Vol: {volume:.4f}  {wave}  [{status}]"
+                        self.after(0, lambda t=text: self._vol_label.configure(text=t))
+            except Exception:
+                pass
+
+        threading.Thread(target=_monitor, daemon=True).start()
+        return stop
+
+    def _clear_vol(self):
+        self._vol_label.configure(text="")
+
     # ────────────────────────────────────────────────────────
-    # DECORATION ENTREE   # (affichage dans la console)
+    # BOOT
     # ────────────────────────────────────────────────────────
 
     def _boot_sequence(self):
         self.console.write_boot([
             "Agent PydanticAI chargé",
             "MCP connecté : workspace-mcp (gmail, doc, web)",
-            "STT initialisé : whisper-base (fr)",
+            "STT initialisé : Deepgram → Groq → Whisper-small (fr)",
             "Micro prêt : 16000Hz mono",
         ])
 
@@ -159,6 +226,9 @@ class SiseClawApp(ctk.CTk):
 
     def _on_mic_click(self):
         if self._running:
+            # Interruption de la lecture TTS en cours
+            if self._playing:
+                sd.stop()
             return
         self._running = True
         self.mic_btn.set_listening()
@@ -179,7 +249,10 @@ class SiseClawApp(ctk.CTk):
             self.after(0, lambda: self._set_status("ÉCOUTE", RED))
             self.after(0, lambda: self.console.write_step("🎤", "STT", "Écoute en cours...", "red"))
 
+            _vol_stop = self._start_vol_monitor()
             audio_path = self._recorder.record_until_silence()
+            _vol_stop.set()
+            self.after(0, self._clear_vol)
             name = audio_path.name
             self.after(0, lambda: self.console.write_detail(f"→ audio capturé : {name}"))
 
@@ -234,7 +307,9 @@ class SiseClawApp(ctk.CTk):
                 self._loop,
             )
             tts_path = tts_future.result()
-            self._speaker.play_file(tts_path)
+            self._playing = True
+            self._speaker.play_file(tts_path)   # bloque jusqu'à fin ou sd.stop()
+            self._playing = False
             tts_path.unlink(missing_ok=True)
 
             self.after(0, lambda: self.console.write_detail(f"→ terminé en {e:.1f}s"))

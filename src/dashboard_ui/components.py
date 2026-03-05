@@ -65,22 +65,43 @@ class ConsoleWidget(ctk.CTkTextbox):
         self.configure(state="disabled")
         self.see("end")
 
-    def _insert_inline(self, tb, text: str, base_tag: str = "text"):
-        """Parse le formatage inline : **bold**, `code`, *italic*."""
-        pattern = re.compile(r'(\*\*(.+?)\*\*|`(.+?)`|\*(.+?)\*)')
-        pos = 0
-        for m in pattern.finditer(text):
-            if m.start() > pos:
-                tb.insert("end", text[pos:m.start()], base_tag)
-            if m.group(0).startswith("**"):
-                tb.insert("end", m.group(2), "md_bold")
-            elif m.group(0).startswith("`"):
-                tb.insert("end", m.group(3), "md_code")
-            else:
-                tb.insert("end", m.group(4), "green")
-            pos = m.end()
-        if pos < len(text):
-            tb.insert("end", text[pos:], base_tag)
+    def _insert_inline(self, tb, text: str, base_tag: str = None) -> None:
+        """
+        Insère du texte dans le Textbox en gérant le Markdown (gras) et les tags de base.
+        Version robuste contre les crashs Tcl/Tkinter.
+        """
+        import re
+        # Un seul groupe de capture (les parenthèses)
+        m = re.search(r'\*\*(.*?)\*\*', text)
+        
+        if m:
+            # 1. On insère le texte AVANT le gras
+            before_text = text[:m.start()]
+            if before_text:
+                if base_tag:
+                    tb.insert("end", before_text, base_tag)
+                else:
+                    tb.insert("end", before_text)
+            
+            # 2. On insère le texte EN GRAS
+            # CORRECTION ICI : m.group(1) cible notre unique groupe de capture
+            bold_text = m.group(1)
+            if bold_text:
+                tags = ("md_bold", base_tag) if base_tag else ("md_bold",)
+                tb.insert("end", bold_text, tags)
+            
+            # 3. On traite le RESTE du texte (Récursivité)
+            after_text = text[m.end():]
+            if after_text:
+                self._insert_inline(tb, after_text, base_tag)
+                
+        else:
+            # Aucun Markdown détecté, on insère le texte brut
+            if text:
+                if base_tag:
+                    tb.insert("end", text, base_tag)
+                else:
+                    tb.insert("end", text)
 
     def write_markdown(self, text: str):
         """Affiche une réponse avec rendu Markdown (titres, gras, code, listes)."""

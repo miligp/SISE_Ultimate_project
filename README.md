@@ -124,6 +124,9 @@ src/
 
 ### Interface et audio
 
+<img width="788" height="725" alt="image" src="https://github.com/user-attachments/assets/b0cb0ceb-7c6a-49ca-930c-50b6d8374711" />
+
+
 | Bibliothèque | Version | Rôle |
 |-------------|---------|------|
 | [customtkinter](https://github.com/TomSchimansky/CustomTkinter) | ≥ 5.2.2 | Interface graphique desktop |
@@ -264,6 +267,7 @@ Master 2 SISE — Université Lumière Lyon 2 · 2025–2026
 <div align="center">
 Romain BUONO - Constantin REY-COQUAIS - Milena GORDIEN PIQUET
 </div>
+
 
 
 

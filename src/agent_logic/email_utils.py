@@ -6,6 +6,7 @@ from typing import List, Dict, Optional
 import os
 import smtplib
 from email.message import EmailMessage
+import re
 
 def send_email(to_address: str, subject: str, body: str) -> str:
     user: str | None = os.getenv("EMAIL_USER")
@@ -31,40 +32,48 @@ def send_email(to_address: str, subject: str, body: str) -> str:
         return f"Failed to send email: {e}"
 
 def _get_email_body(msg: Message, max_length: int = 2000) -> str:
-    body: str = ""
+    body_plain: str = ""
+    body_html: str = ""
     
-    if msg.is_multipart():
-        for part in msg.walk():
-            content_type: str = part.get_content_type()
-            disposition: str = str(part.get("Content-Disposition"))
+    for part in msg.walk():
+        content_type: str = part.get_content_type()
+        disposition: str = str(part.get("Content-Disposition"))
+        
+        if "attachment" in disposition:
+            continue
             
-            if content_type == "text/plain" and "attachment" not in disposition:
-                try:
-                    charset: str = part.get_content_charset() or "utf-8"
-                    payload: Optional[bytes] = part.get_payload(decode=True)
-                    if payload:
-                        body += payload.decode(charset, errors="replace")
-                except Exception:
-                    continue
-    else:
-        if msg.get_content_type() == "text/plain":
-            try:
-                charset: str = msg.get_content_charset() or "utf-8"
-                payload: Optional[bytes] = msg.get_payload(decode=True)
-                if payload:
-                    body = payload.decode(charset, errors="replace")
-            except Exception:
-                pass
-                
-    return body.strip()[:max_length]
+        try:
+            charset: str = part.get_content_charset() or "utf-8"
+            payload: Optional[bytes] = part.get_payload(decode=True)
+            if payload:
+                decoded_text = payload.decode(charset, errors="replace")
+                if content_type == "text/plain":
+                    body_plain += decoded_text
+                elif content_type == "text/html":
+                    body_html += decoded_text
+        except Exception:
+            continue
 
-def get_latest_emails(count: int = 5) -> List[Dict[str, str]]:
+    # Priorité au texte brut, sinon nettoyage basique du HTML
+    final_body = body_plain if body_plain else re.sub(r'<[^>]+>', ' ', body_html)
+    
+    # Nettoyage des espaces multiples
+    final_body = re.sub(r'\s+', ' ', final_body)
+            
+    return final_body.strip()[:max_length]
+
+def search_emails(
+    sender: Optional[str] = None, 
+    subject: Optional[str] = None, 
+    since_date: Optional[str] = None, 
+    limit: int = 5
+) -> List[Dict[str, str]]:
     user: Optional[str] = os.getenv("EMAIL_USER")
     password: Optional[str] = os.getenv("EMAIL_PASSWORD")
     server: str = os.getenv("EMAIL_IMAP_SERVER", "imap.gmail.com")
 
     if not user or not password:
-        return [{"error": "Missing email credentials in environment variables."}]
+        return [{"error": "Missing email credentials."}]
 
     emails: List[Dict[str, str]] = []
     try:
@@ -72,31 +81,41 @@ def get_latest_emails(count: int = 5) -> List[Dict[str, str]]:
         mail.login(user, password)
         mail.select("inbox")
 
-        _, data = mail.search(None, "ALL")
-        if not data or not data[0]:
+        search_criteria: List[str] = []
+        if sender:
+            search_criteria.append(f'FROM "{sender}"')
+        if subject:
+            search_criteria.append(f'SUBJECT "{subject}"')
+        if since_date:
+            search_criteria.append(f'SINCE "{since_date}"')
+
+        query: str = f"({' '.join(search_criteria)})" if search_criteria else "ALL"
+        
+        status, data = mail.search(None, query)
+        if status != "OK" or not data or not data[0]:
             return []
             
         mail_ids: List[str] = data[0].split()
         
-        for m_id in mail_ids[-count:]:
+        for m_id in mail_ids[-limit:]:
             _, msg_data = mail.fetch(m_id, "(RFC822)")
             for response_part in msg_data:
                 if isinstance(response_part, tuple):
                     msg: Message = email.message_from_bytes(response_part[1])
                     
                     subject_header = msg.get("Subject", "")
-                    subject: str = ""
+                    decoded_subject: str = ""
                     if subject_header:
                         decoded_parts = decode_header(subject_header)
-                        decoded_subject, encoding = decoded_parts[0]
-                        if isinstance(decoded_subject, bytes):
-                            subject = decoded_subject.decode(encoding or "utf-8", errors="replace")
+                        raw_subject, encoding = decoded_parts[0]
+                        if isinstance(raw_subject, bytes):
+                            decoded_subject = raw_subject.decode(encoding or "utf-8", errors="replace")
                         else:
-                            subject = str(decoded_subject)
+                            decoded_subject = str(raw_subject)
                     
                     emails.append({
                         "from": str(msg.get("From", "")),
-                        "subject": subject,
+                        "subject": decoded_subject,
                         "date": str(msg.get("Date", "")),
                         "body": _get_email_body(msg)
                     })

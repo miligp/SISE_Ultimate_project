@@ -18,7 +18,8 @@ from src.agent_logic.doc_utils import (
     list_local_documents, 
     read_document_unified,
     write_to_excel,
-    refresh_excel_file
+    refresh_excel_file,
+    read_pdf
 )
 
 from src.agent_logic.music_utils import global_player
@@ -50,7 +51,7 @@ def get_system_prompt() -> str:
         "Ne génère jamais un document entier sans valider chaque section avec l'utilisateur. "
         "Réponds toujours en français, sois concis et précis. "
         f"Date actuelle : {current_date} (format IMAP). "
-        "RÈGLE CRITIQUE (Email) : Présente toujours le brouillon et attends une confirmation explicite avant d'utiliser `dispatch_email`."
+        "RÈGLE CRITIQUE (Email) : Présente toujours le brouillon et attends une confirmation explicite avant d'utiliser `send_email`."
     )
 
 agent = Agent(
@@ -167,6 +168,14 @@ def refresh_excel_tool(filename: str) -> str:
     À utiliser IMPÉRATIVEMENT quand tu lis un fichier et que tu trouves des cellules contenant la mention "[Formule non évaluée]".
     """
     return refresh_excel_file(filename)
+
+@agent.tool_plain
+def read_pdf_tool(filename: str) -> str:
+    """
+    Extrait les données textuelles d'un pdf
+    utile pour récupérer du contexte ou des informations ou lire à l'utilisateur
+    """
+    return read_pdf(filename)
 
 # --- EXECUTION ---
 

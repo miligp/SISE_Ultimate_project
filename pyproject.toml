@@ -27,4 +27,5 @@ dependencies = [
     "python-vlc>=3.0.21203",
     "mimetype>=0.1.5",
     "pathlib>=1.0.1",
+    "pymupdf>=1.27.1",
 ]

@@ -223,15 +223,14 @@ EMAIL_IMAP_SERVER=imap.gmail.com
 > - Groq : [console.groq.com](https://console.groq.com/) → API Keys
 > - Gmail : Compte Google → Sécurité → Validation en 2 étapes → **Mots de passe des applications**
 
----
-
-## Mode d'emploi
-
 ### Lancement
 
 ```bash
 uv run python src/app_gui.py
 ```
+---
+
+## Mode d'emploi
 
 ### Utilisation
 
@@ -264,5 +263,6 @@ uv run python src/app_gui.py
 *Romain BUONO - Constantion REY-COQUAIS - Milena GORDIEN PIQUET*
 
 </div>
+
 
 

@@ -24,24 +24,20 @@ Votre compte Gmail doit avoir la **validation en deux étapes activée**.
 
 ## Étape 2 — Créer un mot de passe d'application
 
+![Accès aux mots de passe d'application depuis le compte Google](img/Image1.jpg)
 1. Aller sur [myaccount.google.com/apppasswords](https://myaccount.google.com/apppasswords)
    *(ou : Compte Google → Sécurité → Mots de passe des applications)*
 
-![Accès aux mots de passe d'application depuis le compte Google](img/Image1.jpg)
-
+![Saisir le nom de l'application](img/Image2.jpg)
 2. Dans le champ **"Nom de l'application"**, saisir : `SISE-CLAW`
 
-![Saisir le nom de l'application](img/Image2.jpg)
-
+![Interface de création du mot de passe d'application](img/Image3.jpg)
 3. Cliquer sur **Créer**
 
 4. Google génère un mot de passe de **16 caractères** du type :
    ```
    xxxx xxxx xxxx xxxx
    ```
-
-![Interface de création du mot de passe d'application](img/Image3.jpg)
-
 5. **Copier ce mot de passe immédiatement** — il ne sera affiché qu'une seule fois.
 
 ---

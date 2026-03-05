@@ -46,7 +46,7 @@ from src.agent_logic.pydantic_ai_agent import agent
 
 
 class SiseClawApp(ctk.CTk):
-
+    
     def __init__(self):
         super().__init__()
 
@@ -56,33 +56,35 @@ class SiseClawApp(ctk.CTk):
         self.minsize(650, 500)
         self.configure(fg_color=BG)
 
-        # ── State ─────────────────────────────────────────
-        self._running = False
-        self._playing = False   # True uniquement pendant la lecture TTS
+        # ── State (Typage strict, initialisation à None) ──
+        self._running: bool = False
+        self._playing: bool = False
         self._message_history: List[ModelMessage] = []
-        self._recorder = MicrophoneRecorder(sample_rate=16000, channels=1)
-        self._manager = TranscriptionManager(providers=[
-            DeepgramSTTProvider(),
-            GroqSTTProvider(),
-            WhisperSTT(model_name="small"),
-        ])
-        self._tts = SynthesisManager(EdgeTTSProvider(voice="fr-FR-DeniseNeural"))
-        self._speaker = AudioSpeaker()
+        
+        # Objets lourds retardés (Lazy Initialization)
+        self._recorder: Optional[MicrophoneRecorder] = None
+        self._manager: Optional[TranscriptionManager] = None
+        self._tts: Optional[SynthesisManager] = None
+        self._speaker: Optional[AudioSpeaker] = None
 
         # ── Loop asyncio persistant ───────────────────────
         self._loop = asyncio.new_event_loop()
         threading.Thread(target=self._loop.run_forever, daemon=True).start()
 
-        # ── Build UI ──────────────────────────────────────
+        # ── Build UI (Instantané) ─────────────────────────
         self._build_header()
         self._build_console()
         self._build_controls()
+        
+        # On désactive le bouton micro tant que le système n'est pas prêt
+        self.mic_btn.configure(state="disabled")
+        self._set_status("CHARGEMENT...", YELLOW)
 
-        # ── Raccourci clavier ─────────────────────────────
         self.bind_all("<Return>", lambda _: self._on_mic_click())
 
-        # ── Boot sequence ─────────────────────────────────
-        self.after(300, self._boot_sequence)
+        # ── Boot sequence en arrière-plan ─────────────────
+        # Le GUI s'affiche immédiatement. Le reste charge dans un thread.
+        threading.Thread(target=self._async_boot_sequence, daemon=True).start()
 
     # ────────────────────────────────────────────────────────
     # UI BUILD
@@ -162,7 +164,7 @@ class SiseClawApp(ctk.CTk):
 
         ctk.CTkLabel(
             controls,
-            text="SISE-CLAW  ·  Projet Master 2 SISE  ·  2026",
+            text="SISE-CLAW  ·  Sprint M2 SISE  ·  2026",
             font=ctk.CTkFont(family="Consolas", size=9),
             text_color=DIMMER,
         ).pack(side="bottom", pady=(0, 4))
@@ -208,17 +210,78 @@ class SiseClawApp(ctk.CTk):
     def _clear_vol(self):
         self._vol_label.configure(text="")
 
+
+    # ────────────────────────────────────────────────────────
+    # UTILITAIRE AUDIO
+    # ────────────────────────────────────────────────────────
+
+    def _speak_text_sync(self, text: str):
+        """
+        Génère et joue un audio. Bloque le thread appelant jusqu'à la fin de la lecture.
+        Ne doit JAMAIS être appelée depuis le thread principal (UI).
+        """
+        try:
+            tts_future = asyncio.run_coroutine_threadsafe(
+                self._tts.process_text_to_audio_file(text),
+                self._loop,
+            )
+            tts_path = tts_future.result()
+            
+            self._playing = True
+            self._speaker.play_file(tts_path)  # bloque jusqu'à fin ou sd.stop()
+            self._playing = False
+            
+            tts_path.unlink(missing_ok=True)
+        except Exception as e:
+            logger.error("Erreur lors de la lecture vocale : %s", e)
+
     # ────────────────────────────────────────────────────────
     # BOOT
     # ────────────────────────────────────────────────────────
 
-    def _boot_sequence(self):
+    def _async_boot_sequence(self) -> None:
+        """
+        Initialise les composants lourds en arrière-plan (I/O Bound).
+        Protège le Thread UI principal.
+        """
+        # 1. Imports paresseux (Lazy Imports)
+        # On importe les modules lourds ICI, pas en haut du fichier app_gui.py
+        from src.voice_processing.audio_capture import MicrophoneRecorder
+        from src.voice_processing.stt.deepgram_provider import DeepgramSTTProvider
+        from src.voice_processing.stt.groq_provider import GroqSTTProvider
+        from src.voice_processing.stt.whisper_provider import WhisperSTT
+        from src.voice_processing.stt.transcription_manager import TranscriptionManager
+        from src.voice_processing.tts.edge_tts_provider import EdgeTTSProvider
+        from src.voice_processing.tts.synthesis_manager import SynthesisManager
+        from src.voice_processing.audio_playback import AudioSpeaker
+
+        # 2. Instanciations
+        self._recorder = MicrophoneRecorder(sample_rate=16000, channels=1)
+        self._manager = TranscriptionManager(providers=[
+            DeepgramSTTProvider(),
+            GroqSTTProvider(),
+            WhisperSTT(model_name="small"), # Note: Whisper devrait idéalement charger son modèle de manière Lazy en interne
+        ])
+        self._tts = SynthesisManager(EdgeTTSProvider(voice="fr-FR-DeniseNeural"))
+        self._speaker = AudioSpeaker()
+
+        # 3. Mise à jour du GUI (Doit être renvoyé sur le Main Thread via self.after)
+        self.after(0, self._finalize_boot)
+
+    def _finalize_boot(self) -> None:
+        """Appelé sur le Main Thread une fois le chargement arrière-plan terminé."""
         self.console.write_boot([
             "Agent PydanticAI chargé",
-            "MCP connecté : workspace-mcp (gmail, doc, web)",
-            "STT initialisé : Deepgram → Groq → Whisper-small (fr)",
+            "STT & TTS initialisés en arrière-plan",
             "Micro prêt : 16000Hz mono",
         ])
+        
+        self.mic_btn.configure(state="normal")
+        self._set_status("PRÊT", GREEN)
+
+        # Lancement du message d'accueil
+        welcome_msg = "Je vous souhaite le bonjour, je suis Sise Claw, votre assistant vocal. Le système est prêt."
+        threading.Thread(target=self._speak_text_sync, args=(welcome_msg,), daemon=True).start()
 
     # ────────────────────────────────────────────────────────
     # ACTION
@@ -304,18 +367,8 @@ class SiseClawApp(ctk.CTk):
             self.after(0, lambda: self.console.write_markdown(r))
 
             # ── 5. TTS audio ──────────────────────────────
-            tts_future = asyncio.run_coroutine_threadsafe(
-                self._tts.process_text_to_audio_file(r),
-                self._loop,
-            )
-            tts_path = tts_future.result()
-            self._playing = True
-            self._speaker.play_file(tts_path)   # bloque jusqu'à fin ou sd.stop()
-            self._playing = False
-            tts_path.unlink(missing_ok=True)
-
+            self._speak_text_sync(r)
             self.after(0, lambda: self.console.write_detail(f"→ terminé en {e:.1f}s"))
-
         except Exception as ex:
             err = str(ex)
             self.after(0, lambda: self.console.write_step("❌", "ERREUR", err, "red"))
@@ -326,7 +379,6 @@ class SiseClawApp(ctk.CTk):
             self.after(0, lambda: self._set_status("PRÊT", GREEN))
             self.after(0, self.mic_btn.set_ready)
             self._running = False
-
 
 # ════════════════════════════════════════════════════════════
 # MAIN

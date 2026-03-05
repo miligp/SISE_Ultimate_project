@@ -124,7 +124,7 @@ src/
 
 ### Interface et audio
 
-<img width="788" height="725" alt="image" src="https://github.com/user-attachments/assets/b0cb0ceb-7c6a-49ca-930c-50b6d8374711" />
+<img width="788" alt="image" src="Installation_notice/img/Image4.jpg" />
 
 
 | Bibliothèque | Version | Rôle |

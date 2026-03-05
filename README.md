@@ -13,9 +13,12 @@
 ![License](https://img.shields.io/badge/License-Académique-gray?style=flat-square)
 
 **Assistant personnel intelligent contrôlé à la voix**
-
-*Sprint de 2 jours Master 2 SISE — Data Science*
-*Université Lumière Lyon 2 · 2025–2026*
+<div align="center">
+Challenge sur 2 jours · Master 2 SISE — Data Science
+</div>
+<div align="center">
+Université Lumière Lyon 2 · 2025–2026
+</div>
 
 [Contexte](#contexte-et-problématique) • [Approche](#solution-proposée) • [Architecture](#-architecture) • [Technologies](#-technologies) • [Installation](#-installation) • [Mode d'emploi](#-mode-demploi)
 
@@ -268,6 +271,7 @@ Master 2 SISE — Université Lumière Lyon 2 · 2025–2026
 <div align="center">
 Romain BUONO - Constantin REY-COQUAIS - Milena GORDIEN PIQUET
 </div>
+
 
 
 

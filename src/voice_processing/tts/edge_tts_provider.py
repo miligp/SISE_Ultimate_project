@@ -11,7 +11,7 @@ class EdgeTTSProvider:
     Fournisseur TTS ultra-léger utilisant l'API Microsoft Edge.
     Intègre le contrôle dynamique du débit (rate) pour une diction plus humaine.
     """
-    def __init__(self, voice: str = "fr-FR-DeniseNeural", rate: str = "+35%") -> None:
+    def __init__(self, voice: str = "fr-FR-DeniseNeural", rate: str = "+15%") -> None:
         """
         Initialise le fournisseur.
         

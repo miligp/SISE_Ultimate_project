@@ -13,6 +13,8 @@ from pydantic_ai import Agent
 from src.agent_logic.email_utils import search_emails, send_email
 from src.agent_logic.doc_utils import init_document, append_to_document, read_document
 
+from src.agent_logic.music_utils import global_player
+
 load_dotenv()
 
 LLM_MODEL = os.getenv("LLM_MODEL", "mistral:mistral-large-latest")
@@ -22,6 +24,7 @@ def get_system_prompt() -> str:
     return (
         "Tu es un assistant personnel intelligent contrôlé à la voix. "
         "L'utilisateur peut être malvoyant : sois descriptif sur les actions effectuées et n'hésite pas à relire les modifications. "
+        "Tu es également un DJ personnel : tu peux chercher de la musique, la lancer, la mettre en pause, la reprendre ou l'arrêter complètement. "
         "Pour la rédaction de documents (.docx) : procède étape par étape. Demande d'abord le titre, puis l'en-tête, puis paragraphe par paragraphe. "
         "Ne génère jamais un document entier sans valider chaque section avec l'utilisateur. "
         "Réponds toujours en français, sois concis et précis. "
@@ -89,6 +92,38 @@ def append_doc_tool(
 def read_doc_tool(filename: str) -> str:
     """Lit l'intégralité du contenu actuel du document Word."""
     return read_document(filename)
+
+@agent.tool_plain
+def play_music_tool(query: str) -> str:
+    """
+    Recherche une musique sur YouTube et la joue immédiatement sur les enceintes.
+    - query: Le nom de l'artiste, le titre de la chanson, ou le style musical.
+    """
+    return global_player.play(query)
+
+@agent.tool_plain
+def stop_music_tool() -> str:
+    """
+    Arrête la musique actuellement en cours de lecture sur l'ordinateur.
+    À utiliser si l'utilisateur dit "stop la musique", "coupe le son", "silence", etc.
+    """
+    return global_player.stop()
+
+@agent.tool_plain
+def pause_music_tool() -> str:
+    """
+    Met en pause la musique actuellement en cours de lecture.
+    À utiliser quand l'utilisateur dit "pause", "mets sur pause", "arrête un instant", etc.
+    """
+    return global_player.pause()
+
+@agent.tool_plain
+def resume_music_tool() -> str:
+    """
+    Reprend la lecture de la musique qui était en pause.
+    À utiliser quand l'utilisateur dit "remets la musique", "reprends", "play", etc.
+    """
+    return global_player.resume()
 
 if __name__ == "__main__":
     TEST_QUERIES = [

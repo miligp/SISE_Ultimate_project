@@ -5,7 +5,7 @@ Agent pydantic-ai utilisant email_utils.py pour la recherche, la lecture et l'en
 import asyncio
 import os
 from datetime import datetime
-from typing import AsyncGenerator, Optional, Literal
+from typing import AsyncGenerator, Optional, Literal, List
 
 from dotenv import load_dotenv
 from pydantic_ai import Agent
@@ -16,7 +16,9 @@ from src.agent_logic.doc_utils import (
     append_to_document, 
     replace_in_document, 
     list_local_documents, 
-    read_document_unified
+    read_document_unified,
+    write_to_excel,
+    refresh_excel_file
 )
 
 load_dotenv()
@@ -111,6 +113,24 @@ def edit_doc_tool(filename: str, old_text: str, new_text: str) -> str:
     - new_text: Le nouveau texte qui remplacera l'ancien.
     """
     return replace_in_document(filename, old_text, new_text)
+
+@agent.tool_plain
+def write_excel_tool(filename: str, sheet_name: str, data: list[list[str]], start_row: int = 1, start_col: int = 1) -> str:
+    """
+    Crée un fichier Excel (.xlsx) ou modifie un existant en y écrivant des données.
+    - data: Une liste de lignes (ex: [["Nom", "Age"], ["Alice", "30"]]).
+    RÈGLE CRITIQUE : 
+    Les formules DOIVENT être en anglais (ex: =RANDBETWEEN(0, 10), =AVERAGE(A1:A20)).
+    """
+    return write_to_excel(filename, sheet_name, data, start_row, start_col)
+
+@agent.tool_plain
+def refresh_excel_tool(filename: str) -> str:
+    """
+    Actualise un classeur Excel pour forcer le calcul de toutes ses formules.
+    À utiliser IMPÉRATIVEMENT quand tu lis un fichier et que tu trouves des cellules contenant la mention "[Formule non évaluée]".
+    """
+    return refresh_excel_file(filename)
 
 # --- EXECUTION ---
 

@@ -1,6 +1,6 @@
 <div align="center">
 
-<img width="180" alt="SISE-CLAW logo" src="Installation_notice/img/Image4.jpg" />
+<img width="180" alt="SISE-CLAW logo" src="Installation_notice/img/logo.png" />
 
 # 🎙️ SISE-CLAW
 
@@ -273,6 +273,7 @@ Master 2 SISE — Université Lumière Lyon 2 · 2025–2026
 <div align="center">
 Romain BUONO - Constantin REY-COQUAIS - Milena GORDIEN PIQUET
 </div>
+
 
 
 

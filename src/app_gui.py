@@ -6,11 +6,14 @@ Lancement : python src/app_gui.py
 """
 
 import asyncio
+import logging
 import threading
 import time
 import sys
 from pathlib import Path
 from typing import List, Optional
+
+logger = logging.getLogger(__name__)
 
 # Ajoute la racine du projet à sys.path pour que "src" soit importable
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -18,12 +21,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import customtkinter as ctk
 from pydantic_ai.messages import ModelMessage
 
-from src.dashboard_ui.ui import BG, SURFACE, TEXT, DIMMER, CYAN, BLUE, GREEN
+from src.dashboard_ui.ui import BG, RED, SURFACE, TEXT, DIMMER, CYAN, BLUE, GREEN, PEACH, MAUVE, BORDER, YELLOW, FONTS
 from src.dashboard_ui.components import ConsoleWidget, MicButton
 
 from src.voice_processing.audio_capture import MicrophoneRecorder
 from src.voice_processing.stt.whisper_provider import WhisperSTT
 from src.voice_processing.stt.transcription_manager import TranscriptionManager
+from src.voice_processing.tts.edge_tts_provider import EdgeTTSProvider
+from src.voice_processing.tts.synthesis_manager import SynthesisManager
+from src.voice_processing.audio_playback import AudioSpeaker
 from src.agent_logic.pydantic_ai_agent import agent
 
 
@@ -44,6 +50,8 @@ class SiseClawApp(ctk.CTk):
         self._recorder = MicrophoneRecorder(sample_rate=16000, channels=1)
         self._provider = WhisperSTT(model_name="base")
         self._manager = TranscriptionManager(provider=self._provider)
+        self._tts = SynthesisManager(EdgeTTSProvider())
+        self._speaker = AudioSpeaker()
 
         # ── Loop asyncio persistant ───────────────────────
         self._loop = asyncio.new_event_loop()
@@ -140,7 +148,7 @@ class SiseClawApp(ctk.CTk):
     def _boot_sequence(self):
         self.console.write_boot([
             "Agent PydanticAI chargé",
-            "MCP connecté : workspace-mcp (gmail, calendar)",
+            "MCP connecté : workspace-mcp (gmail, doc, web)",
             "STT initialisé : whisper-base (fr)",
             "Micro prêt : 16000Hz mono",
         ])
@@ -168,16 +176,16 @@ class SiseClawApp(ctk.CTk):
             self.after(0, self.console.write_separator)
 
             # ── 1. Écoute ─────────────────────────────────
-            self.after(0, lambda: self._set_status("ÉCOUTE", CYAN))
-            self.after(0, lambda: self.console.write_step("🎤", "STT", "Écoute en cours...", "cyan"))
+            self.after(0, lambda: self._set_status("ÉCOUTE", RED))
+            self.after(0, lambda: self.console.write_step("🎤", "STT", "Écoute en cours...", "red"))
 
             audio_path = self._recorder.record_until_silence()
             name = audio_path.name
             self.after(0, lambda: self.console.write_detail(f"→ audio capturé : {name}"))
 
             # ── 2. Transcription ──────────────────────────
-            self.after(0, lambda: self._set_status("TRANSCRIPTION", CYAN))
-            self.after(0, lambda: self.console.write_step("🎤", "STT", "Transcription...", "cyan"))
+            self.after(0, lambda: self._set_status("TRANSCRIPTION", PEACH))
+            self.after(0, lambda: self.console.write_step("🎤", "STT", "Transcription...", "peach"))
 
             result_stt = self._manager.process_audio(audio_path, language="fr")
             query: str = result_stt.text.strip()
@@ -205,23 +213,30 @@ class SiseClawApp(ctk.CTk):
             r = response
             self.after(0, lambda: self.console.write_detail(f"→ réponse ({len(r)} car.)"))
 
-            # ── Tool calls ────────────────────────────────
+            # ── Tool calls → terminal uniquement ──────────
             for msg in result.new_messages():
                 if hasattr(msg, "parts"):
                     for part in msg.parts:
                         if hasattr(part, "tool_name"):
-                            tn = part.tool_name
-                            self.after(0, lambda t=tn: self.console.write_step(
-                                "🔧", "MCP", f"Appel {t}()", "peach"
-                            ))
+                            logger.info("🔧 MCP → %s()", part.tool_name)
 
             # ── 4. Résultat ───────────────────────────────
             elapsed = time.time() - t_start
             e = elapsed
-            self.after(0, lambda: self._set_status("RÉSULTAT", GREEN))
-            self.after(0, lambda: self.console.write_step("✅", "DONE", "Réponse reçue", "green"))
-            self.after(0, lambda: self.console.write_result(r))
+            self.after(0, lambda: self._set_status("RÉSULTAT", MAUVE))
+            self.after(0, lambda: self.console.write_step("✅", "DONE", "Réponse reçue", "mauve"))
+            self.after(0, lambda: self.console.write_markdown(r))
             self.after(0, lambda: self.console.write_tts(r))
+
+            # ── 5. TTS audio ──────────────────────────────
+            tts_future = asyncio.run_coroutine_threadsafe(
+                self._tts.process_text_to_audio_file(r),
+                self._loop,
+            )
+            tts_path = tts_future.result()
+            self._speaker.play_file(tts_path)
+            tts_path.unlink(missing_ok=True)
+
             self.after(0, lambda: self.console.write_detail(f"→ terminé en {e:.1f}s"))
 
         except Exception as ex:
@@ -241,6 +256,7 @@ class SiseClawApp(ctk.CTk):
 # ════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s [%(name)s] %(message)s")
     ctk.set_appearance_mode("dark")
     ctk.set_default_color_theme("dark-blue")
     app = SiseClawApp()

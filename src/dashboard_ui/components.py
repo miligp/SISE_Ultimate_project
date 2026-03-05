@@ -1,3 +1,4 @@
+import re
 import customtkinter as ctk
 from datetime import datetime
 from .ui import COLORS, FONTS
@@ -33,6 +34,13 @@ class ConsoleWidget(ctk.CTkTextbox):
         
         tb.tag_configure("dim", foreground=COLORS["DIM"])
         tb.tag_configure("dimmer", foreground=COLORS.get("DIMMER", "#45475A"))
+        # Tags Markdown
+        tb.tag_configure("md_h1",   foreground=COLORS["GREEN"], font=(FONTS["CONSOLE"][0], 15, "bold"))
+        tb.tag_configure("md_h2",   foreground=COLORS["GREEN"], font=(FONTS["CONSOLE"][0], 13, "bold"))
+        tb.tag_configure("md_h3",   foreground=COLORS["GREEN"], font=(FONTS["CONSOLE"][0], 13, "bold"))
+        tb.tag_configure("md_bold", foreground=COLORS["GREEN"], font=(FONTS["CONSOLE"][0], FONTS["CONSOLE"][1], "bold"))
+        tb.tag_configure("md_code", foreground=COLORS["YELLOW"])
+        tb.tag_configure("md_bullet", foreground=COLORS["BLUE"])
 
     def write_step(self, icon: str, label: str, text: str, color: str = "text"):
         """Affiche une étape du processus (ex: 🎤 STT)."""
@@ -42,7 +50,7 @@ class ConsoleWidget(ctk.CTkTextbox):
         self.insert("end", f"  {ts}  ", "dimmer")
         self.insert("end", f"{icon}  ", color.lower())
         self.insert("end", f"{label:<10} ", f"bold_{color.lower()}")
-        self.insert("end", f"{text}\n", "text")
+        self.insert("end", f"{text}\n", color.lower())
         
         self.configure(state="disabled")
         self.see("end")
@@ -54,6 +62,52 @@ class ConsoleWidget(ctk.CTkTextbox):
         for line in text.split("\n"):
             self.insert("end", f"  {line}\n", "green")
         self.insert("end", "\n")
+        self.configure(state="disabled")
+        self.see("end")
+
+    def _insert_inline(self, tb, text: str, base_tag: str = "text"):
+        """Parse le formatage inline : **bold**, `code`, *italic*."""
+        pattern = re.compile(r'(\*\*(.+?)\*\*|`(.+?)`|\*(.+?)\*)')
+        pos = 0
+        for m in pattern.finditer(text):
+            if m.start() > pos:
+                tb.insert("end", text[pos:m.start()], base_tag)
+            if m.group(0).startswith("**"):
+                tb.insert("end", m.group(2), "md_bold")
+            elif m.group(0).startswith("`"):
+                tb.insert("end", m.group(3), "md_code")
+            else:
+                tb.insert("end", m.group(4), "green")
+            pos = m.end()
+        if pos < len(text):
+            tb.insert("end", text[pos:], base_tag)
+
+    def write_markdown(self, text: str):
+        """Affiche une réponse avec rendu Markdown (titres, gras, code, listes)."""
+        self.configure(state="normal")
+        tb = self._textbox
+        tb.insert("end", "\n")
+        for line in text.split("\n"):
+            if line.startswith("### "):
+                self._insert_inline(tb, f"  {line[4:]}\n", "md_h3")
+            elif line.startswith("## "):
+                self._insert_inline(tb, f"  {line[3:]}\n", "md_h2")
+            elif line.startswith("# "):
+                self._insert_inline(tb, f"  {line[2:]}\n", "md_h1")
+            elif line.strip() == "---":
+                tb.insert("end", f"  {'─' * 40}\n", "dimmer")
+            elif re.match(r'^[\-\*] ', line):
+                tb.insert("end", "  • ", "md_bullet")
+                self._insert_inline(tb, f"{line[2:]}\n", "green")
+            elif re.match(r'^\d+\. ', line):
+                m = re.match(r'^(\d+\. )(.*)', line)
+                tb.insert("end", f"  {m.group(1)}", "md_bullet")
+                self._insert_inline(tb, f"{m.group(2)}\n", "green")
+            elif not line.strip():
+                tb.insert("end", "\n")
+            else:
+                self._insert_inline(tb, f"  {line}\n", "green")
+        tb.insert("end", "\n")
         self.configure(state="disabled")
         self.see("end")
 

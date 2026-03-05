@@ -5,12 +5,12 @@ Agent pydantic-ai utilisant email_utils.py pour la recherche, la lecture et l'en
 import asyncio
 import os
 from datetime import datetime
-from typing import AsyncGenerator, Optional, Literal, List
+from typing import AsyncGenerator, Optional, Literal, List, Dict
 
 from dotenv import load_dotenv
 from pydantic_ai import Agent
 
-from src.agent_logic.email_utils import search_emails, send_email
+from src.agent_logic.email_utils import search_emails, send_email, delete_email
 from src.agent_logic.doc_utils import (
     init_document, 
     append_to_document, 
@@ -64,21 +64,32 @@ def fetch_emails_tool(
     sender: Optional[str] = None, 
     subject: Optional[str] = None, 
     since_date: Optional[str] = None, 
-    count: int = 5
-) -> list[dict[str, str]]:
+    limit: int = 5,
+    is_unread: bool = False
+) -> List[Dict[str, str]]:
     """
-    Recherche et récupère des emails selon des critères stricts.
-    - sender: adresse email ou nom partiel de l'expéditeur.
-    - subject: mot-clé dans l'objet de l'email.
-    - since_date: date de début au format 'DD-Mon-YYYY'. À utiliser UNIQUEMENT si l'utilisateur précise une notion de temps ("depuis hier", "ce matin"). Ne pas utiliser pour "le dernier email".
-    - count: nombre maximum d'emails à récupérer (défaut: 5).
+    Fetches emails from the inbox based on specific criteria.
+    - sender: Email address or partial name of the sender.
+    - subject: Keyword in the email subject.
+    - since_date: Start date in 'DD-Mon-YYYY' format.
+    - limit: Maximum number of emails to retrieve (default: 5).
+    - is_unread: Boolean (True) if the user explicitly asks for "new" or "unread" messages.
     """
-    return search_emails(sender, subject, since_date, count)
+    return search_emails(sender, subject, since_date, limit, is_unread)
 
 @agent.tool_plain
 def dispatch_email(to_address: str, subject: str, body: str) -> str:
     """Envoie un email après validation explicite de l'utilisateur."""
     return send_email(to_address, subject, body)
+
+@agent.tool_plain
+def delete_email_tool(mail_id: str) -> str:
+    """
+    Supprime définitivement un email de la boîte de réception.
+    - mail_id: L'identifiant unique de l'email (il doit obligatoirement être récupéré au préalable via fetch_emails_tool).
+    RÈGLE DE SÉCURITÉ : Ne supprime jamais un email sans avoir lu son contenu à l'utilisateur et obtenu sa confirmation explicite.
+    """
+    return delete_email(mail_id)
 
 # --- OUTILS BUREAUTIQUE ---
 

@@ -18,6 +18,8 @@ dependencies = [
     "edge-tts>=7.2.7",
     "customtkinter>=5.2.2",
     "python-docx>=1.2.0",
+    "yt-dlp>=2026.3.3",
+    "psutil>=7.2.2",
     "openpyxl>=3.1.5",
     "xlwings>=0.33.20",
 ]
